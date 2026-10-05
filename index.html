@@ -46,20 +46,28 @@
       </div>
     </footer>
 
+    <!-- POPUP MODAL SETELAH KATA SELESAI -->
+    <div id="word-complete-modal" class="popup-backdrop hidden">
+      <div class="popup-card">
+        <div id="popup-emoji" class="popup-card-emoji">🐄</div>
+        <div id="popup-word" class="popup-card-word">SAPI</div>
+        <div class="popup-buttons-col">
+          <button id="btn-replay-sound" class="popup-action-btn btn-replay" aria-label="Dengar Lagi">
+            🔊 DENGAR LAGI
+          </button>
+          <button id="btn-next-word" class="popup-action-btn btn-next" aria-label="Lanjut">
+            LANJUT ▶
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- START SCREEN OVERLAY -->
     <div id="start-overlay" class="overlay-screen">
       <div class="overlay-emoji">🐹🍊</div>
       <h1 class="overlay-title">KAPIBARA<br>CARI HURUF</h1>
       <p class="overlay-subtitle">Ayo bantu Kapibara mencari huruf-huruf untuk menyusun kata!</p>
       <button id="start-btn" class="big-action-btn">▶ MULAI</button>
-    </div>
-
-    <!-- VICTORY SCREEN OVERLAY -->
-    <div id="victory-overlay" class="overlay-screen hidden">
-      <div class="overlay-emoji">👑🎉</div>
-      <h2 class="overlay-title">HEBAT SEKALI!</h2>
-      <p class="overlay-subtitle">Kamu berhasil membaca semua 15 kata dengan pintar!</p>
-      <button id="restart-btn" class="big-action-btn">🔄 MAIN LAGI</button>
     </div>
   </div>
 

@@ -334,3 +334,111 @@ html, body {
 .hidden {
   display: none !important;
 }
+
+/* ==========================================================================
+   POPUP MODAL SETELAH KATA SELESAI
+   ========================================================================== */
+.popup-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(30, 20, 10, 0.78);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  z-index: 60;
+  backdrop-filter: blur(2px);
+}
+
+.popup-card {
+  background: #fff8e7;
+  border: 4px solid var(--card-border);
+  border-radius: 24px;
+  padding: clamp(20px, 4dvh, 32px) clamp(16px, 4vw, 28px);
+  text-align: center;
+  box-shadow: 0 10px 0 #3a220e, 0 20px 40px rgba(0, 0, 0, 0.45);
+  width: min(92%, 400px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: popCardIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popCardIn {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.popup-card-emoji {
+  font-size: clamp(64px, 14vw, 92px);
+  line-height: 1;
+  margin-bottom: 6px;
+  animation: bounceEmoji 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes bounceEmoji {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-8px) scale(1.08); }
+}
+
+.popup-card-word {
+  font-size: clamp(34px, 8vw, 48px);
+  font-weight: 900;
+  color: #a82020;
+  letter-spacing: 4px;
+  margin-bottom: clamp(16px, 3dvh, 24px);
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.12);
+}
+
+.popup-buttons-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.popup-action-btn {
+  min-height: 64px;
+  border-radius: 16px;
+  font-family: var(--pixel-font);
+  font-size: clamp(17px, 3.8vw, 21px);
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 1px;
+  border: 3px solid var(--card-border);
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+
+.popup-action-btn:focus-visible {
+  outline: 4px solid #ffbe26;
+  outline-offset: 2px;
+}
+
+.btn-replay {
+  background: #ffc820;
+  color: #3b1e08;
+  box-shadow: 0 5px 0 #b37e0c;
+}
+
+.btn-replay:active {
+  transform: translateY(5px);
+  box-shadow: 0 0 0 #b37e0c;
+}
+
+.btn-next {
+  background: #ff5e36;
+  color: #ffffff;
+  box-shadow: 0 5px 0 #8b2005;
+}
+
+.btn-next:active {
+  transform: translateY(5px);
+  box-shadow: 0 0 0 #8b2005;
+}

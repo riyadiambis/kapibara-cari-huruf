@@ -1,7 +1,7 @@
 /* ==========================================================================
-   1. DATA & CONSTANTS (15 KATA BENDA 4 HURUF DENGAN EMOJI JELAS)
+   1. DATA & CONSTANTS (15 KATA BENDA 4 HURUF BER-EMOJI)
    ========================================================================== */
-const WORD_BANK = [
+const ORIGINAL_WORD_BANK = [
   { word: 'sapi', emoji: '🐄' },
   { word: 'bola', emoji: '⚽' },
   { word: 'mata', emoji: '👁️' },
@@ -21,12 +21,35 @@ const WORD_BANK = [
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz'.split('');
 
+/**
+ * Acak kata tanpa pengulangan (Fisher-Yates)
+ * Jika previousLastWord diberikan (saat MAIN LAGI), pastikan kata pertama
+ * putaran baru tidak sama dengan kata terakhir putaran sebelumnya.
+ */
+function shuffleWords(previousLastWord = null) {
+  const arr = [...ORIGINAL_WORD_BANK];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+
+  if (previousLastWord && arr[0].word === previousLastWord && arr.length > 1) {
+    const swapIdx = 1 + Math.floor(Math.random() * (arr.length - 1));
+    [arr[0], arr[swapIdx]] = [arr[swapIdx], arr[0]];
+  }
+  return arr;
+}
+
+// Active Shuffled Word Bank
+let activeWordBank = [];
+
 // Game State
 let currentWordIndex = 0;
 let currentSlotIndex = 0;
 let isGameRunning = false;
 let isCelebrating = false;
-let mapLetters = []; // Strictly maintains 5 letters on map with normalized (u, v) positions
+let isPopupOpen = false;       // Menghentikan game total selama popup tampil
+let mapLetters = [];           // Persis 5 huruf di map dengan koordinat normalisasi (u, v)
 let celebrationParticles = []; // Confetti & hearts
 let pickupSparkles = [];       // Sparkles on pickup
 
@@ -91,7 +114,7 @@ function playSingleStepSound() {
 }
 
 function startFootstepLoop() {
-  if (isStepPlaying) return;
+  if (isStepPlaying || isPopupOpen) return;
   isStepPlaying = true;
   playSingleStepSound();
   stepSoundTimer = setInterval(() => {
@@ -299,7 +322,9 @@ function getRandomDistractor(targetLetter, existingChars) {
  */
 function resetAllMapLetters() {
   mapLetters = [];
-  const currentWordObj = WORD_BANK[currentWordIndex];
+  const currentWordObj = activeWordBank[currentWordIndex];
+  if (!currentWordObj) return;
+
   const targetChar = (currentSlotIndex < 4) ? currentWordObj.word[currentSlotIndex] : '';
 
   // Huruf yang akan di-spawn:
@@ -369,8 +394,18 @@ const keysPressed = {
   right: false
 };
 
+function resetInputState() {
+  keysPressed.up = false;
+  keysPressed.down = false;
+  keysPressed.left = false;
+  keysPressed.right = false;
+  document.querySelectorAll('.dpad-btn').forEach(b => b.classList.remove('pressed'));
+  stopFootstepLoop();
+  capybara.isWalking = false;
+}
+
 window.addEventListener('keydown', (e) => {
-  if (!isGameRunning) return;
+  if (!isGameRunning || isPopupOpen) return;
   if (['ArrowUp', 'KeyW'].includes(e.code)) keysPressed.up = true;
   if (['ArrowDown', 'KeyS'].includes(e.code)) keysPressed.down = true;
   if (['ArrowLeft', 'KeyA'].includes(e.code)) keysPressed.left = true;
@@ -390,7 +425,7 @@ function setupDpadButton(btnId, directionKey) {
 
   const startPress = (e) => {
     e.preventDefault();
-    if (!isGameRunning) return;
+    if (!isGameRunning || isPopupOpen) return;
     keysPressed[directionKey] = true;
     btn.classList.add('pressed');
   };
@@ -418,7 +453,8 @@ setupDpadButton('btn-right', 'right');
    6. GAME LOGIC & COLLISION
    ========================================================================== */
 function updateGame(deltaTime) {
-  if (!isGameRunning) return;
+  // Game BERHENTI TOTAL selama popup tampil atau belum berjalan
+  if (!isGameRunning || isPopupOpen) return;
 
   // Gerakan Kapibara Proporsional
   let dx = 0;
@@ -474,7 +510,7 @@ function updateGame(deltaTime) {
   if (capybara.hopTimer > 0) {
     capybara.hopTimer -= deltaTime;
     capybara.hopY = Math.sin((1 - capybara.hopTimer / 0.35) * Math.PI) * -16;
-  } else {
+  } else if (!isCelebrating) {
     capybara.hopY = 0;
   }
 
@@ -502,7 +538,8 @@ function updateGame(deltaTime) {
 
   // Deteksi Tabrakan dengan Huruf
   if (!isCelebrating && currentSlotIndex < 4) {
-    const currentWordObj = WORD_BANK[currentWordIndex];
+    const currentWordObj = activeWordBank[currentWordIndex];
+    if (!currentWordObj) return;
     const neededChar = currentWordObj.word[currentSlotIndex];
 
     const capyPixelX = capybara.u * arenaWidth;
@@ -530,7 +567,7 @@ function updateGame(deltaTime) {
 }
 
 function onCorrectLetterCollected(collectedChar) {
-  const currentWordObj = WORD_BANK[currentWordIndex];
+  const currentWordObj = activeWordBank[currentWordIndex];
 
   // Efek lompat kecil & sparkle
   capybara.hopTimer = 0.35;
@@ -550,7 +587,7 @@ function onCorrectLetterCollected(collectedChar) {
   // Mainkan urutan suara: Clink -> Huruf -> Ejaan -> Gabungan
   playProgressiveLetterSequence(collectedChar, collectedSoFar);
 
-  // ATURAN 1: RESET PENUH SELURUH HURUF DI MAP
+  // RESET PENUH SELURUH HURUF DI MAP
   resetAllMapLetters();
 
   // Cek apakah kata sudah selesai (4 huruf)
@@ -610,35 +647,57 @@ function triggerWordCelebration() {
     });
   }
 
-  // Transisi ke kata berikutnya setelah 3.5 detik (memberi waktu bagi ejaan selesai diucapkan)
+  // Tampilkan Popup LANJUT setelah animasi perayaan dan suara selesai (~3.2s)
   setTimeout(() => {
-    advanceToNextWord();
-  }, 3500);
+    showWordCompletePopup();
+  }, 3200);
 }
 
-function advanceToNextWord() {
+/**
+ * Tampilkan Popup Modal Setelah Kata Selesai
+ * Menghentikan game total sampai tombol LANJUT ditekan
+ */
+function showWordCompletePopup() {
   isCelebrating = false;
-  currentWordIndex++;
+  isPopupOpen = true;
+  resetInputState();
 
-  if (currentWordIndex >= WORD_BANK.length) {
-    showVictoryScreen();
-    return;
+  const currentObj = activeWordBank[currentWordIndex];
+  const isLastWord = (currentWordIndex === activeWordBank.length - 1);
+
+  document.getElementById('popup-emoji').textContent = currentObj.emoji;
+  document.getElementById('popup-word').textContent = currentObj.word.toUpperCase();
+
+  const btnNext = document.getElementById('btn-next-word');
+  if (isLastWord) {
+    btnNext.textContent = 'MAIN LAGI ▶';
+  } else {
+    btnNext.textContent = 'LANJUT ▶';
   }
 
-  loadWord(currentWordIndex);
+  const modal = document.getElementById('word-complete-modal');
+  modal.classList.remove('hidden');
+
+  // Berikan fokus ke tombol lanjut agar langsung bisa ditekan lewat Enter / Spasi
+  setTimeout(() => {
+    btnNext.focus();
+  }, 80);
 }
 
 function loadWord(index) {
   currentWordIndex = index;
   currentSlotIndex = 0;
   isCelebrating = false;
+  isPopupOpen = false;
+  resetInputState();
 
-  const currentObj = WORD_BANK[currentWordIndex];
+  const currentObj = activeWordBank[currentWordIndex];
+  if (!currentObj) return;
 
-  // Update UI Header dengan Emoji
+  // Update UI Header dengan Emoji dan Nama Kata
   document.getElementById('word-emoji').textContent = currentObj.emoji;
   document.getElementById('current-target-name').textContent = currentObj.word.toUpperCase();
-  document.getElementById('level-indicator').textContent = `Kata ${currentWordIndex + 1} dari ${WORD_BANK.length}`;
+  document.getElementById('level-indicator').textContent = `Kata ${currentWordIndex + 1} dari ${activeWordBank.length}`;
 
   // Reset Slots
   for (let i = 0; i < 4; i++) {
@@ -650,13 +709,6 @@ function loadWord(index) {
 
   // Reset Map Letters (5 huruf baru di posisi acak)
   resetAllMapLetters();
-}
-
-function showVictoryScreen() {
-  isGameRunning = false;
-  stopFootstepLoop();
-  document.getElementById('victory-overlay').classList.remove('hidden');
-  speakText('Hebat sekali! Kamu berhasil membaca semua kata!', 0.9, 1.2);
 }
 
 /* ==========================================================================
@@ -929,16 +981,53 @@ document.getElementById('start-btn').addEventListener('click', () => {
   cancelAllSpeech();
   document.getElementById('start-overlay').classList.add('hidden');
   resizeArena();
+
+  // Acak seluruh bank kata (kata pertama acak!)
+  activeWordBank = shuffleWords();
   loadWord(0);
   isGameRunning = true;
+
   // Suara panduan awal
-  speakText('Ayo cari kata ' + WORD_BANK[0].word, 0.9, 1.1);
+  speakText('Ayo cari kata ' + activeWordBank[0].word, 0.9, 1.1);
 });
 
-document.getElementById('restart-btn').addEventListener('click', () => {
-  document.getElementById('victory-overlay').classList.add('hidden');
-  loadWord(0);
-  isGameRunning = true;
+// Tombol "🔊 DENGAR LAGI" di Popup
+document.getElementById('btn-replay-sound').addEventListener('click', () => {
+  cancelAllSpeech();
+  const currentObj = activeWordBank[currentWordIndex];
+  if (currentObj) {
+    speakText(currentObj.word, 0.85, 1.15);
+  }
+});
+
+// Tombol "LANJUT ▶" / "MAIN LAGI ▶" di Popup
+document.getElementById('btn-next-word').addEventListener('click', () => {
+  const modal = document.getElementById('word-complete-modal');
+  modal.classList.add('hidden');
+  isPopupOpen = false;
+  resetInputState();
+
+  // Reset posisi kapibara kembali ke tengah arena
+  capybara.u = 0.5;
+  capybara.v = 0.5;
+  capybara.facing = 1;
+  capybara.hopY = 0;
+
+  const isLastWord = (currentWordIndex === activeWordBank.length - 1);
+  if (isLastWord) {
+    // Selesai semua 15 kata: kocok ulang tanpa duplikat kata pertama dengan kata terakhir
+    const prevLast = activeWordBank[currentWordIndex].word;
+    activeWordBank = shuffleWords(prevLast);
+    loadWord(0);
+    speakText('Hore! Kita mulai lagi, ayo cari kata ' + activeWordBank[0].word, 0.9, 1.1);
+  } else {
+    // Lanjut ke kata berikutnya
+    currentWordIndex++;
+    loadWord(currentWordIndex);
+  }
+
+  // Hilangkan fokus dari tombol agar tombol keyboard tidak terinterupsi
+  document.getElementById('btn-next-word').blur();
 });
 
 // Jalankan penyesuaian ukuran awal dan game loop
