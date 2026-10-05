@@ -1,194 +1,116 @@
-# ISSUE: Pengembangan Game Edukasi "Kapibara Cari Huruf" (Single-File HTML5)
+# ISSUE: Pengembangan Game Edukasi "Kapibara Cari Huruf"
 
 ## 📌 Ringkasan Proyek
-Mengembangkan game edukasi web berbasis **Pixel Art** untuk membantu anak TK belajar membaca kata secara interaktif dan menyenangkan. 
+Mengembangkan game edukasi web berbasis **Pixel Art Chibi** untuk membantu anak TK belajar membaca kata secara interaktif, ramah anak, dan menyenangkan. 
 
-Output akhir berupa **satu file statis tunggal (`index.html`)** yang menggabungkan HTML, CSS, dan JavaScript tanpa framework eksternal, tanpa dependensi build step (bundler/npm), dan siap langsung di-host di **GitHub Pages**.
+Output berupa **tiga file statis di root folder**:
+1. `index.html` (struktur dan layout semantik)
+2. `style.css` (tampilan retro pixel art dan sistem responsif `100dvh`)
+3. `script.js` (logika game, audio sintetis, kontrol, dan visual canvas)
+
+Dapat langsung dibuka di browser tanpa framework eksternal, tanpa dependensi build step (*zero build*), dan siap di-deploy ke **GitHub Pages**.
 
 ---
 
 ## 🎯 Target Pengguna & Karakteristik UX
 - **Target Pemain**: Anak usia taman kanak-kanak (TK).
-- **Target Perangkat**: Ponsel dan Tablet (layar sentuh) dalam orientasi layar yang nyaman (responsif/portrait & landscape friendly).
+- **Target Perangkat**: Ponsel (portrait), Tablet, dan Laptop/Desktop (landscape/layar lebar) tanpa scroll (`100dvh`).
 - **Filosofi Belajar (Gentle Learning)**: 
-  - Tidak ada sistem *game over*, penalti skor, atau efek suara "salah/mengejek" yang membuat anak minder.
-  - Interaksi positif dan perayaan keberhasilan yang ceria.
-  - Elemen kontrol sentuh berukuran besar dan ramah jari anak kecil.
-- **Gaya Visual**: 8-bit retro pixel art, warna cerah ceria, font bergaya pixel/rounded yang jelas dibaca anak.
+  - Tidak ada sistem *game over*, penalti waktu, atau efek suara salah yang membuat anak minder.
+  - Menabrak huruf pengecoh tidak memicu penalti atau suara negatif apa pun (*silent ignore*).
+  - Interaksi positif dengan perayaan ceria, efek lonceng clink, bintang sparkle, dan hati.
+- **Gaya Visual**: Pixel art retro ala chibi yang ceria, menggemaskan (*gemoy*), dan ramah anak.
 
 ---
 
-## 🛑 Aturan Domain & Batasan Game
+## 🛑 Aturan Domain & Mekanisme Permainan
 
 1. **Cakupan Huruf Lengkap (A sampai Z)**:
-   - Huruf yang boleh muncul di arena permainan (baik sebagai huruf target kata maupun huruf pengecoh acak) mencakup **seluruh alfabet A sampai Z** (`a` s.d. `z`).
-   - Tidak ada pembatasan whitelist huruf; semua huruf alfabet dapat digunakan.
+   - Huruf yang boleh muncul di arena (huruf target maupun pengecoh) mencakup seluruh alfabet A sampai Z (`a` s.d. `z`).
 
-2. **Daftar Kata Target (Hanya 4 Huruf)**:
-   - Bank kata **HANYA berisi kata dengan panjang persis 4 huruf** (tidak ada kata 2 huruf).
-   - Terdiri dari **15 kata benda konkret sehari-hari** yang sangat akrab untuk anak TK, mudah dibaca, dan mudah diucapkan.
-   - Setiap kata bersifat unik (tidak ada duplikasi).
-   - Daftar 15 kata target pilihan:
-     1. `sapi`
-     2. `bola`
-     3. `mata`
-     4. `susu`
-     5. `kuda`
-     6. `buku`
-     7. `kaki`
-     8. `roti`
-     9. `topi`
-     10. `meja`
-     11. `baju`
-     12. `pita`
-     13. `gigi`
-     14. `tali`
-     15. `dadu`
+2. **Bank Kata Terkurasi (15 Kata Benda 4 Huruf Ber-Emoji)**:
+   - Terdiri dari 15 kata benda konkret sehari-hari yang akrab bagi anak TK dan memiliki padanan emoji yang jelas:
+     1. `sapi` (🐄)
+     2. `bola` (⚽)
+     3. `mata` (👁️)
+     4. `susu` (🥛)
+     5. `kuda` (🐴)
+     6. `buku` (📖)
+     7. `kaki` (🦶)
+     8. `roti` (🍞)
+     9. `topi` (🧢)
+     10. `baju` (👕)
+     11. `pita` (🎀)
+     12. `gigi` (🦷)
+     13. `ikan` (🐟)
+     14. `apel` (🍎)
+     15. `dadu` (🎲)
+   - Emoji ditampilkan mendampingi teks "BENTUK KATA" agar anak mengenali objek yang sedang dibaca.
 
-3. **Mekanisme Suara Tanpa File Aset Eksternal**:
-   - **Web Audio API**: Digunakan untuk mensintesis efek suara langkah kaki kapibara (procedural audio oscillator/noise pendek berulang) dan jingle perayaan.
-   - **Web Speech API (`window.speechSynthesis`)**: Digunakan untuk suara fonik huruf dan pembacaan ejaan bahasa Indonesia (`id-ID`). Tidak menggunakan file audio rekaman `.mp3`/`.wav`.
+3. **Reset Huruf Penuh Tiap Pungut (Strict 5 Letters on Map)**:
+   - Jumlah huruf di map **selalu persis 5 huruf**:
+     - **1 huruf target** berikutnya yang sedang dicari.
+     - **4 huruf pengecoh** acak dari alfabet A–Z.
+   - **Aturan Pengecoh**: Huruf pengecoh tidak boleh sama dengan huruf target dan tidak boleh kembar satu sama lain.
+   - **Mekanisme Reset**: Setiap kali satu huruf benar berhasil dipungut, **SEMUA huruf di map dihapus** lalu dimunculkan 5 huruf baru di posisi acak yang aman (tidak menempel di kapibara, tidak bertumpuk, tidak terlalu dekat tepi).
+   - **Tampilan Huruf Netral**: Semua 5 koin huruf berpenampilan sama (tidak ada glow atau pembeda pada huruf target) sehingga anak aktif mencarinya sendiri.
 
-4. **Keseimbangan Pool Huruf di Peta (Constant 5 Letters)**:
-   - Jumlah huruf aktif di arena permainan **selalu dijaga persis 5 huruf**:
-     - **1 huruf target** berikutnya yang sedang dibutuhkan dalam kata.
-     - **4 huruf pengecoh** acak yang diambil dari alfabet A–Z (di luar huruf target saat ini).
-   - Setiap kali huruf target berhasil dipungut:
-     - Huruf tersebut dihapus dari map dan mengisi slot kata di atas.
-     - Satu huruf pengganti di-spawn di map agar jumlah kembali menjadi 5.
+4. **Sistem Suara & Urutan Fonik (Web Audio & Web Speech API)**:
+   - **Tanpa Aset File Eksternal**:
+     - **Web Audio API**:
+       - *Langkah Kaki*: Ketukan lembut prosedural berulang selama kapibara berjalan dan langsung hening saat diam.
+       - *Efek Clink*: Suara lonceng kecil ceria (dua nada naik cepat 0.2–0.3 detik) saat huruf benar dipungut.
+       - *Jingle Sukses*: Arpeggio ceria saat kata selesai.
+     - **Web Speech API (`id-ID`)**:
+       - Pembacaan fonik huruf dan ejaan dalam bahasa Indonesia.
+       - Mekanisme anti-tumpuk (`speechSynthesis.cancel()`).
+   - **Urutan Suara Lengkap Pasca Pungut**:
+     1. Bunyi efek lonceng **"Clink"** seketika.
+     2. Bunyi nama huruf yang baru dipungut (misal: *"P"*).
+     3. Jika huruf terkumpul $\ge 2$: eja satu per satu huruf yang telah terkumpul (misal: *"S... A... P"*).
+     4. Bunyi kata/suku kata gabungannya (misal: *"SAP"*).
 
-5. **Logika Suara Ejaan Bertahap (Progressive Spelling Queue)**:
-   - Saat kapibara memungut huruf target yang benar:
-     - Langkah A: Bunyikan nama huruf itu sendiri terlebih dahulu (contoh: huruf `"t"` dibunyikan *"T"*).
-     - Langkah B: Jika huruf yang terkumpul sejauh ini $\ge 2$ huruf, lanjutkan dengan mengeja huruf-huruf yang sudah terkumpul satu per satu, kemudian gabungan bunyinya (contoh jika mengumpulkan kata `m-a-t-a`, setelah memungut `t`: suarakan *"T"*, lalu jeda, lalu eja *"M... A... T"*, lalu sebut suku kata/potongan *"MAT"*).
+5. **Karakter Kapibara Chibi Gemoy**:
+   - Kepala bulat besar, badan gemuk pendek, kaki mungil, pipi merah muda (*blush*), mata besar berkilau, telinga bulat, serta jeruk yuzu mini di atas kepala.
+   - Animasi dinamis:
+     - *Jalan*: Bergoyang lucu (*waddle*) dengan efek lentur (*squash and stretch*) dan bayangan dinamis.
+     - *Diam (Idle)*: Bernapas halus dan berkedip berkala.
+     - *Pungut Huruf*: Melompat kecil diiringi semburan bintang sparkle.
+     - *Selesai Kata*: Melompat tinggi gembira diiringi hujan hati (*hearts*) dan confetti.
+     - *Hadap*: Berbalik arah kiri dan kanan mengikuti tombol arah.
 
-6. **Toleransi Huruf Salah**:
-   - Jika kapibara menabrak huruf yang bukan urutan berikutnya:
-     - Huruf tetap di tempatnya (tidak terambil).
-     - Tidak ada suara buzzer/tetot atau tanda silang merah.
-     - Kapibara cukup berjalan melewatinya seolah tidak ada peristiwa negatif.
+6. **Desain Responsif Fleksibel (HP, Tablet, Laptop)**:
+   - Tidak ada scrollbar di semua perangkat (`100dvh`).
+   - Di HP tampil portrait kompak; di tablet dan laptop arena membesar mengisi layar (tidak berupa kolom sempit).
+   - Seluruh elemen berukuran proporsional terhadap sisi terpendek arena:
+     - Diameter koin huruf: 13% – 15% dari sisi terpendek.
+     - Ukuran kapibara: 15% – 18% dari sisi terpendek.
+     - Posisi disimpan dalam rasio normalisasi ($u, v \in [0.0, 1.0]$) sehingga tetap akurat saat rotasi layar atau resize.
+   - Kontrol D-Pad on-screen hanya muncul pada perangkat layar sentuh (`@media (pointer: coarse)`). Pada laptop/desktop dengan mouse, D-Pad disembunyikan dan berganti instruksi keyboard (*"Pakai tombol panah atau WASD"*).
+   - Rendering pixel art tajam menggunakan `image-rendering: pixelated` dan kompensasi `window.devicePixelRatio`.
 
 ---
 
-## 🏗️ Arsitektur Teknis (Single-File Architecture)
+## 🏗️ Struktur File
 
-Semua komponen disatukan dalam satu file `index.html`:
 ```text
-index.html
-├── <head>
-│   ├── Meta viewport responsif (disable accidental pinch-zoom pada touch controller)
-│   └── <style> : CSS Reset, Pixel Art rendering rule, Grid Layout, Touch D-Pad styling
-├── <body>
-│   ├── Header UI : Slot Kata Target (4 slot kotak) & Indikator Level ("Kata ke-X dari Y")
-│   ├── Game Canvas / Play Area : Arena pergerakan kapibara & huruf-huruf
-│   └── Controller UI : Tombol D-Pad sentuh on-screen berukuran besar
-└── <script> : Seluruh logika JavaScript modular
-    ├── Configuration & Constants (Alfabet A-Z, bank 15 kata target 4 huruf)
-    ├── Audio Engine (Web Audio API procedural sound synthesizer)
-    ├── Speech Synthesis Service (Web Speech API id-ID queue manager)
-    ├── Game State & Logic (Urutan kata, 4 slot aktif, level progress 1-15)
-    ├── Spawner & Grid/Collision Manager (Menjaga 5 huruf di map)
-    ├── Entity: Kapibara (Posisi, sprite pixel procedural/SVG/Canvas, animasi jalan)
-    ├── Input Handler (Keyboard arrow keys + Touch event listeners dengan preventDefault)
-    └── Main Game Loop (requestAnimationFrame)
+/
+├── index.html   # Struktur halaman, header status, canvas arena, dan D-Pad/hint
+├── style.css    # Desain pixel art, tema cerah, layout 100dvh, responsive media queries
+├── script.js    # Logika game, Web Audio, Web Speech, spawner reset 5 huruf, rendering chibi
+└── ISSUE.md     # Dokumentasi spesifikasi dan perencanaan proyek
 ```
 
 ---
 
-## 📋 Tahapan Pengerjaan Step-by-Step (Untuk Eksekusi AI)
-
-Instruksi ini disusun berurutan agar dapat diimplementasikan dan diuji langkah demi langkah:
-
-### Tahap 1: Kerangka HTML, Viewport & Styling Pixel Art
-- Buat file `index.html` dengan struktur dasar.
-- Konfigurasi viewport mobile (`user-scalable=no`, `viewport-fit=cover`).
-- Terapkan CSS reset dan aturan rendering pixel art (`image-rendering: pixelated`).
-- Siapkan layout 3 bagian:
-  1. Baris atas: Header info level ("Kata ke-1 dari 15") dan 4 kotak slot kata target.
-  2. Area tengah: Canvas game 2D (rasio responsif yang pas di layar HP/tablet).
-  3. Baris bawah: Kontrol sentuh D-Pad 4 arah berukuran besar (minimal tombol 64px–72px).
-
-### Tahap 2: Manajemen Data & Bank Kata
-- Definisikan kumpulan alfabet A–Z: `['a', 'b', 'c', ..., 'z']`.
-- Definisikan bank kata berisi 15 kata benda 4 huruf yang telah ditentukan:
-  `['sapi', 'bola', 'mata', 'susu', 'kuda', 'buku', 'kaki', 'roti', 'topi', 'meja', 'baju', 'pita', 'gigi', 'tali', 'dadu']`.
-- Buat fungsi pembantu:
-  - Generator huruf pengecoh acak (memilih acak dari alfabet A–Z selain huruf target saat ini).
-  - Validasi bahwa seluruh kata target memiliki panjang tepat 4 huruf.
-
-### Tahap 3: Karakter Kapibara & Game Loop
-- Buat entitas Kapibara pada Canvas (bisa digambar menggunakan pixel drawing 2D canvas sederhana atau data matrix sprite retro).
-- Implementasikan game loop (`requestAnimationFrame`) dengan kalkulasi delta-time.
-- Tambahkan properti posisi `(x, y)`, arah hadap (kiri/kanan), dan state berjalan (idle vs walking).
-- Buat animasi kaki melangkah sederhana (flip frame kaki saat state walking).
-
-### Tahap 4: Sistem Kontrol (Keyboard & Touch D-Pad)
-- Tambahkan listener keyboard (`ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`, serta `WASD`).
-- Tambahkan listener touch event (`touchstart`, `touchend`, `touchcancel`) pada tombol D-Pad on-screen:
-  - Gunakan `e.preventDefault()` untuk mencegah double-tap zoom atau scrolling layar browser.
-  - Pastikan tombol mendukung penahanan jari (continuous movement selama tombol disentuh).
-
-### Tahap 5: Efek Suara Langkah (Web Audio API)
-- Inisialisasi `AudioContext` pada interaksi pertama pengguna (mengatasi autoplay policy browser).
-- Buat sintesis suara langkah kaki pendek (misal: noise burst atau nada frekuensi rendah 100-150Hz berdurasi 0.05-0.08 detik).
-- Sambungkan dengan state berjalan kapibara:
-  - Suara dimainkan berulang dengan interval teratur (~200ms) saat bergerak.
-  - Suara langsung berhenti seketika saat kapibara berhenti/idle.
-
-### Tahap 6: Spawner Huruf & Mekanisme Pengambilan (Collision)
-- Tempatkan huruf-huruf pixel di canvas pada koordinat acak yang tidak bertabrakan dengan kapibara atau tepi layar.
-- Pastikan di map selalu ada tepat **5 huruf**:
-  - 1 huruf target yang dibutuhkan sesuai slot aktif kata (dari 4 slot).
-  - 4 huruf pengecoh acak dari alfabet A–Z.
-- Logika Tabrakan (Bounding Box / Radius check):
-  - **Jika menyentuh huruf benar**:
-    - Huruf terangkat masuk ke slot target di atas.
-    - Slot kata terisi dan ter-highlight.
-    - Hapus huruf dari map.
-    - Spawn 1 huruf baru di map (huruf target berikutnya jika kata belum selesai, atau huruf pengecoh baru) sehingga total tetap 5.
-  - **Jika menyentuh huruf salah**:
-    - Tidak ada aksi apa pun (huruf tidak bergerak, tidak ada suara penalti).
-
-### Tahap 7: Integrasi Web Speech API (Suara Fonik & Ejaan Indonesia)
-- Buat speech queue manager menggunakan `window.speechSynthesis` dan `SpeechSynthesisUtterance`:
-  - Pilih voice dengan `lang: 'id-ID'`.
-  - Atur pitch dan rate agar ramah untuk anak-anak (rate ~0.85-0.9).
-- Logika suara saat huruf terambil:
-  1. Suarakan nama huruf yang baru diambil (contoh: *"B"*).
-  2. Jika jumlah huruf yang sudah terkumpul $\ge 2$:
-     - Antrekan suara ejaan satu per satu huruf yang terkumpul (contoh: *"B... O"*).
-     - Antrekan pengucapan gabungannya (contoh: *"BO"*).
-  3. Pastikan antrean audio tidak tumpang tindih (handle event `onend` atau antrean rapi).
-
-### Tahap 8: Alur Selesai Kata, Perayaan & Transisi Level
-- Saat ke-4 huruf dalam kata target berhasil dikumpulkan:
-  - Mainkan suara pembacaan kata lengkap secara utuh (contoh: *"BOLA"*).
-  - Tampilkan animasi perayaan singkat (efek pixel confetti berhamburan atau kapibara melompat gembira).
-  - Mainkan jingle sukses pendek via Web Audio API.
-  - Jeda 1.5 - 2 detik, lalu lanjut ke kata berikutnya secara otomatis.
-- Update tampilan progress di pojok layar: `"Kata ke-[Current] dari 15"`.
-- Jika seluruh 15 kata dalam bank kata selesai, tampilkan layar kemenangan ceria ("Hebat, Kamu Pintar!") dengan tombol untuk mengulang dari awal.
-
-### Tahap 9: Elemen Rintangan Sederhana (Opsional/Pemanis)
-- Tambahkan 1-2 objek rintangan statis di arena (misal: batu pixel atau batang pohon).
-- Objek ini hanya menghalangi jalan (solid collision), memaksa kapibara memutar rintangan tanpa memberi penalti apa pun.
-
-### Tahap 10: Uji Coba & Deployment GitHub Pages
-- Buka file secara lokal di browser Chrome/Safari desktop dan mobile.
-- Validasi fungsionalitas:
-  - Kontrol sentuh responsif tanpa lag.
-  - Audio Web Audio dan Speech Synthesis berjalan mulus di mobile.
-  - Pool 5 huruf selalu terjaga konsisten sepanjang permainan.
-- Siapkan branch `main` pada git repository dan aktifkan GitHub Pages pada pengaturan repositori.
-
----
-
-## ✅ Kriteria Keberhasilan (Acceptance Criteria)
-1. **Zero External Assets**: Game dapat dibuka offline langsung dari satu file `index.html` tanpa memerlukan internet untuk download gambar atau audio.
-2. **Bank Kata 4 Huruf Saja**: Semua target kata memiliki 4 slot huruf, dengan total 15 kata benda sehari-hari tanpa duplikasi.
-3. **Alfabet Penuh A-Z**: Huruf pengecoh dan huruf target bebas menggunakan alfabet A-Z.
-4. **UX Ramah Anak TK**: Tombol sentuh besar, tidak ada penalti/suara salah saat menabrak huruf yang tidak sesuai.
-5. **Audio Lengkap**:
-   - Suara langkah kaki berbunyi saat jalan dan hening saat diam.
-   - Suara pembacaan huruf dan ejaan jelas terdengar dalam bahasa Indonesia.
-6. **Responsif**: Tampilan rapi dan proporsional di layar HP, tablet, maupun layar laptop.
+## 📋 Checklist Fungsionalitas
+- [x] Layar awal dengan tombol besar "▶ MULAI" untuk otorisasi audio.
+- [x] Reset penuh 5 huruf tiap kali huruf benar dipungut.
+- [x] Pengecoh tidak sama dengan huruf target dan tidak duplikat.
+- [x] Efek suara clink lonceng ceria sebelum fonik huruf.
+- [x] Urutan suara bertahap: clink -> huruf -> ejaan per huruf -> kata gabungan.
+- [x] Suara langkah kaki mati saat kapibara berhenti.
+- [x] Kapibara chibi gemoy dengan animasi waddle, kedip, hop, sparkle, dan hati.
+- [x] Tampilan 15 emoji pendamping kata target.
+- [x] Layout responsif 100dvh (D-Pad sentuh vs panduan keyboard laptop).
+- [x] Huruf target tidak dibedakan warnanya di arena (anak mencari sendiri).

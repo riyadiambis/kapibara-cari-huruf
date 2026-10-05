@@ -1,0 +1,336 @@
+/* ==========================================================================
+   RESET & CORE VARIABLES
+   ========================================================================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+:root {
+  --bg-color: #58a042;
+  --header-bg: #73c852;
+  --card-bg: #fff8e7;
+  --card-border: #4a3319;
+  --accent-gold: #ffbe26;
+  --accent-orange: #ff7824;
+  --accent-green: #38b000;
+  --text-brown: #3d2314;
+  --pixel-font: 'Courier New', Courier, monospace;
+}
+
+html, body {
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background-color: #2b1d0c;
+  font-family: var(--pixel-font);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  touch-action: none;
+}
+
+/* ==========================================================================
+   RESPONSIVE GAME CONTAINER (100dvh, EXPANDS ON TABLET/LAPTOP)
+   ========================================================================== */
+#game-container {
+  width: 100vw;
+  max-width: 1040px; /* Expands to fill tablet & laptop nicely */
+  height: 100dvh;
+  max-height: 100dvh;
+  background: var(--bg-color);
+  border: 4px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+/* ==========================================================================
+   TOP BAR: LEVEL & WORD SLOTS
+   ========================================================================== */
+#top-bar {
+  background: var(--header-bg);
+  border-bottom: 4px solid var(--card-border);
+  padding: clamp(6px, 1.2dvh, 12px) 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(4px, 0.8dvh, 8px);
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.status-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 900;
+  font-size: clamp(13px, 2.2vw, 18px);
+  color: var(--text-brown);
+  text-shadow: 1px 1px 0px rgba(255,255,255,0.7);
+}
+
+.word-target-title {
+  font-size: clamp(14px, 2.4vw, 20px);
+  font-weight: bold;
+  color: #2c1a0e;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.target-emoji {
+  font-size: clamp(22px, 3.8vw, 32px);
+  line-height: 1;
+  display: inline-block;
+  animation: gentleFloat 2s ease-in-out infinite alternate;
+}
+
+.target-text {
+  color: #a82020;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+@keyframes gentleFloat {
+  0% { transform: translateY(0px) scale(1); }
+  100% { transform: translateY(-3px) scale(1.08); }
+}
+
+.slots-container {
+  display: flex;
+  gap: clamp(8px, 1.8vw, 18px);
+  justify-content: center;
+  align-items: center;
+  margin: 2px 0;
+}
+
+.letter-slot {
+  width: clamp(52px, 8.5vw, 76px);
+  height: clamp(52px, 8.5vw, 76px);
+  background: var(--card-bg);
+  border: 3px dashed var(--card-border);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: clamp(28px, 4.8vw, 42px);
+  font-weight: 900;
+  color: var(--text-brown);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s;
+  box-shadow: inset 0 3px 0 rgba(0,0,0,0.06);
+}
+
+.letter-slot.filled {
+  border: 3px solid var(--card-border);
+  background: var(--accent-gold);
+  color: #3b1e08;
+  box-shadow: 0 4px 0 #b37e0c, inset 0 2px 0 rgba(255,255,255,0.6);
+  animation: popSlot 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.letter-slot.active-target {
+  border: 3px solid #ff3b3b;
+  animation: pulseTarget 1.2s infinite alternate;
+}
+
+@keyframes popSlot {
+  0% { transform: scale(0.6); }
+  70% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pulseTarget {
+  0% { transform: scale(1); border-color: #ff5959; }
+  100% { transform: scale(1.06); border-color: #ff0000; box-shadow: 0 0 10px #ff3b3b; }
+}
+
+/* ==========================================================================
+   CANVAS WRAPPER & ARENA (RESPONSIVE)
+   ========================================================================== */
+#canvas-wrapper {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: #58a63e;
+  overflow: hidden;
+}
+
+#gameCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ==========================================================================
+   CONTROLS BAR: TOUCH D-PAD VS DESKTOP KEYBOARD HINT
+   ========================================================================== */
+#controls-bar {
+  background: var(--header-bg);
+  border-top: 4px solid var(--card-border);
+  padding: clamp(6px, 1.2dvh, 12px) 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+/* Desktop keyboard hint */
+.desktop-hint {
+  display: none;
+  font-size: clamp(13px, 1.8vw, 16px);
+  color: var(--text-brown);
+  background: rgba(255, 255, 255, 0.45);
+  border: 2px solid var(--card-border);
+  border-radius: 20px;
+  padding: 6px 16px;
+  text-align: center;
+  font-weight: bold;
+}
+
+/* Touch D-Pad */
+.dpad-container {
+  display: none;
+  grid-template-columns: repeat(3, clamp(62px, 14vw, 84px));
+  grid-template-rows: repeat(2, clamp(52px, 11vw, 68px));
+  grid-gap: clamp(5px, 1.2vw, 10px);
+  justify-content: center;
+  align-items: center;
+}
+
+.dpad-btn {
+  background: #ffdd55;
+  border: 3px solid var(--card-border);
+  border-radius: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: clamp(26px, 5.5vw, 34px);
+  box-shadow: 0 4px 0 var(--card-border);
+  cursor: pointer;
+  touch-action: none;
+  transition: transform 0.05s, box-shadow 0.05s;
+  color: #3b1e08;
+}
+
+.dpad-btn:active, .dpad-btn.pressed {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 var(--card-border);
+  background: #ffc820;
+}
+
+#btn-up { grid-column: 2; grid-row: 1; }
+#btn-left { grid-column: 1; grid-row: 2; }
+#btn-down { grid-column: 2; grid-row: 2; }
+#btn-right { grid-column: 3; grid-row: 2; }
+
+/* Pointer Media Queries: Touch vs Mouse */
+@media (pointer: coarse) {
+  .dpad-container {
+    display: grid !important;
+  }
+  .desktop-hint {
+    display: none !important;
+  }
+}
+
+@media (pointer: fine) {
+  .dpad-container {
+    display: none !important;
+  }
+  .desktop-hint {
+    display: block !important;
+  }
+}
+
+/* Fallback: if width <= 600px, always show D-Pad just in case of responsive testing */
+@media (max-width: 600px) {
+  .dpad-container {
+    display: grid;
+  }
+}
+
+/* ==========================================================================
+   OVERLAY SCREENS (START & VICTORY)
+   ========================================================================== */
+.overlay-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(43, 29, 12, 0.88);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  text-align: center;
+  z-index: 100;
+  color: #fff;
+}
+
+.overlay-emoji {
+  font-size: clamp(48px, 9vw, 68px);
+  margin-bottom: 8px;
+}
+
+.overlay-title {
+  font-size: clamp(26px, 5.5vw, 42px);
+  font-weight: 900;
+  color: #ffde59;
+  text-shadow: 3px 3px 0 #4a2800;
+  margin-bottom: 12px;
+  line-height: 1.2;
+}
+
+.overlay-subtitle {
+  font-size: clamp(14px, 2.5vw, 19px);
+  color: #f7eedb;
+  margin-bottom: 28px;
+  line-height: 1.4;
+  max-width: 440px;
+}
+
+.big-action-btn {
+  background: #ff5e36;
+  border: 4px solid #fff;
+  color: #fff;
+  font-family: var(--pixel-font);
+  font-size: clamp(20px, 4vw, 28px);
+  font-weight: 900;
+  padding: clamp(14px, 2.5dvh, 20px) clamp(28px, 6vw, 46px);
+  border-radius: 16px;
+  box-shadow: 0 6px 0 #8b2005;
+  cursor: pointer;
+  letter-spacing: 1px;
+  animation: bounceBtn 1.2s infinite alternate;
+}
+
+.big-action-btn:active {
+  transform: translateY(6px);
+  box-shadow: 0 0 0 #8b2005;
+}
+
+@keyframes bounceBtn {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.06); }
+}
+
+.hidden {
+  display: none !important;
+}
