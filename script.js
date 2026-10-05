@@ -454,7 +454,10 @@ setupDpadButton('btn-right', 'right');
    ========================================================================== */
 function updateGame(deltaTime) {
   // Game BERHENTI TOTAL selama popup tampil atau belum berjalan
-  if (!isGameRunning || isPopupOpen) return;
+  if (!isGameRunning || isPopupOpen) {
+    stopFootstepLoop();
+    return;
+  }
 
   // Gerakan Kapibara Proporsional
   let dx = 0;
@@ -585,14 +588,14 @@ function onCorrectLetterCollected(collectedChar) {
   const collectedSoFar = currentWordObj.word.substring(0, currentSlotIndex);
 
   // Mainkan urutan suara: Clink -> Huruf -> Ejaan -> Gabungan
-  playProgressiveLetterSequence(collectedChar, collectedSoFar);
+  const speechPromise = playProgressiveLetterSequence(collectedChar, collectedSoFar);
 
   // RESET PENUH SELURUH HURUF DI MAP
   resetAllMapLetters();
 
   // Cek apakah kata sudah selesai (4 huruf)
   if (currentSlotIndex >= 4) {
-    triggerWordCelebration();
+    triggerWordCelebration(speechPromise);
   } else {
     updateActiveSlotHighlight();
   }
@@ -625,7 +628,7 @@ function updateActiveSlotHighlight() {
   }
 }
 
-function triggerWordCelebration() {
+async function triggerWordCelebration(speechPromise) {
   isCelebrating = true;
   playSuccessJingle();
   updateActiveSlotHighlight();
@@ -647,10 +650,20 @@ function triggerWordCelebration() {
     });
   }
 
-  // Tampilkan Popup LANJUT setelah animasi perayaan dan suara selesai (~3.2s)
-  setTimeout(() => {
-    showWordCompletePopup();
-  }, 3200);
+  // Tunggu hingga rangkaian suara fonik/ejaan kata selesai
+  if (speechPromise) {
+    try {
+      await speechPromise;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // Beri jeda visual 400ms agar anak menikmati sejenak perayaan
+  await new Promise(r => setTimeout(r, 400));
+
+  // TAMPILKAN POPUP MODAL (Tanpa timer otomatis pindah kata!)
+  showWordCompletePopup();
 }
 
 /**
@@ -663,6 +676,8 @@ function showWordCompletePopup() {
   resetInputState();
 
   const currentObj = activeWordBank[currentWordIndex];
+  if (!currentObj) return;
+
   const isLastWord = (currentWordIndex === activeWordBank.length - 1);
 
   document.getElementById('popup-emoji').textContent = currentObj.emoji;
@@ -677,11 +692,12 @@ function showWordCompletePopup() {
 
   const modal = document.getElementById('word-complete-modal');
   modal.classList.remove('hidden');
+  modal.style.display = 'flex'; // Pastikan tampil dengan display flex
 
   // Berikan fokus ke tombol lanjut agar langsung bisa ditekan lewat Enter / Spasi
   setTimeout(() => {
     btnNext.focus();
-  }, 80);
+  }, 60);
 }
 
 function loadWord(index) {
@@ -1004,6 +1020,7 @@ document.getElementById('btn-replay-sound').addEventListener('click', () => {
 document.getElementById('btn-next-word').addEventListener('click', () => {
   const modal = document.getElementById('word-complete-modal');
   modal.classList.add('hidden');
+  modal.style.display = 'none';
   isPopupOpen = false;
   resetInputState();
 
