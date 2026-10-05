@@ -1,7 +1,7 @@
 # ISSUE: Pengembangan Game Edukasi "Kapibara Cari Huruf" (Single-File HTML5)
 
 ## 📌 Ringkasan Proyek
-Mengembangkan game edukasi web berbasis **Pixel Art** untuk membantu anak TK (Naqiyya) belajar membaca kata secara interaktif dan menyenangkan. 
+Mengembangkan game edukasi web berbasis **Pixel Art** untuk membantu anak TK belajar membaca kata secara interaktif dan menyenangkan. 
 
 Output akhir berupa **satu file statis tunggal (`index.html`)** yang menggabungkan HTML, CSS, dan JavaScript tanpa framework eksternal, tanpa dependensi build step (bundler/npm), dan siap langsung di-host di **GitHub Pages**.
 
@@ -18,20 +18,32 @@ Output akhir berupa **satu file statis tunggal (`index.html`)** yang menggabungk
 
 ---
 
-## 🛑 Aturan Domain & Batasan Ketat (Non-Negotiable)
+## 🛑 Aturan Domain & Batasan Game
 
-1. **Whitelist Huruf Naqiyya (Strict Alphabet Whitelist)**:
-   - Huruf yang boleh muncul di game (baik sebagai target kata maupun pengecoh di map) **HANYA**:
-     - **Vokal**: `a`, `i`, `u`, `e`, `o`
-     - **Konsonan**: `m`, `s`, `t`, `b`, `l`, `n`, `d`, `g`, `c`, `z`
-   - ⚠️ **DILARANG KERAS** memunculkan huruf di luar daftar di atas (misal: *k, p, r, w, y, f, v, j, h, q, x*).
+1. **Cakupan Huruf Lengkap (A sampai Z)**:
+   - Huruf yang boleh muncul di arena permainan (baik sebagai huruf target kata maupun huruf pengecoh acak) mencakup **seluruh alfabet A sampai Z** (`a` s.d. `z`).
+   - Tidak ada pembatasan whitelist huruf; semua huruf alfabet dapat digunakan.
 
-2. **Daftar Kata Target**:
-   - Kata target harus tersusun **hanya** dari kombinasi huruf whitelist di atas.
-   - Panjang kata: **2 huruf** (tingkat awal) lalu meningkat ke **4 huruf** (tingkat lanjut).
-   - Rekomendasi bank kata terkurasi yang valid:
-     - *2 Huruf*: `di`, `es`, `om`, `ma`, `mi`
-     - *4 Huruf*: `susu`, `mata`, `sate`, `bola`, `batu`, `gigi`, `tali`, `dadu`, `bisa`, `bela`, `dasi`, `lima`, `madu`, `nasi`, `satu`, `tamu`, `zona`
+2. **Daftar Kata Target (Hanya 4 Huruf)**:
+   - Bank kata **HANYA berisi kata dengan panjang persis 4 huruf** (tidak ada kata 2 huruf).
+   - Terdiri dari **15 kata benda konkret sehari-hari** yang sangat akrab untuk anak TK, mudah dibaca, dan mudah diucapkan.
+   - Setiap kata bersifat unik (tidak ada duplikasi).
+   - Daftar 15 kata target pilihan:
+     1. `sapi`
+     2. `bola`
+     3. `mata`
+     4. `susu`
+     5. `kuda`
+     6. `buku`
+     7. `kaki`
+     8. `roti`
+     9. `topi`
+     10. `meja`
+     11. `baju`
+     12. `pita`
+     13. `gigi`
+     14. `tali`
+     15. `dadu`
 
 3. **Mekanisme Suara Tanpa File Aset Eksternal**:
    - **Web Audio API**: Digunakan untuk mensintesis efek suara langkah kaki kapibara (procedural audio oscillator/noise pendek berulang) dan jingle perayaan.
@@ -40,7 +52,7 @@ Output akhir berupa **satu file statis tunggal (`index.html`)** yang menggabungk
 4. **Keseimbangan Pool Huruf di Peta (Constant 5 Letters)**:
    - Jumlah huruf aktif di arena permainan **selalu dijaga persis 5 huruf**:
      - **1 huruf target** berikutnya yang sedang dibutuhkan dalam kata.
-     - **4 huruf pengecoh** acak yang diambil dari whitelist.
+     - **4 huruf pengecoh** acak yang diambil dari alfabet A–Z (di luar huruf target saat ini).
    - Setiap kali huruf target berhasil dipungut:
      - Huruf tersebut dihapus dari map dan mengisi slot kata di atas.
      - Satu huruf pengganti di-spawn di map agar jumlah kembali menjadi 5.
@@ -67,14 +79,14 @@ index.html
 │   ├── Meta viewport responsif (disable accidental pinch-zoom pada touch controller)
 │   └── <style> : CSS Reset, Pixel Art rendering rule, Grid Layout, Touch D-Pad styling
 ├── <body>
-│   ├── Header UI : Slot Kata Target & Indikator Level ("Kata ke-X dari Y")
+│   ├── Header UI : Slot Kata Target (4 slot kotak) & Indikator Level ("Kata ke-X dari Y")
 │   ├── Game Canvas / Play Area : Arena pergerakan kapibara & huruf-huruf
 │   └── Controller UI : Tombol D-Pad sentuh on-screen berukuran besar
 └── <script> : Seluruh logika JavaScript modular
-    ├── Configuration & Constants (Whitelist huruf, bank kata)
+    ├── Configuration & Constants (Alfabet A-Z, bank 15 kata target 4 huruf)
     ├── Audio Engine (Web Audio API procedural sound synthesizer)
     ├── Speech Synthesis Service (Web Speech API id-ID queue manager)
-    ├── Game State & Logic (Urutan kata, slot aktif, level progress)
+    ├── Game State & Logic (Urutan kata, 4 slot aktif, level progress 1-15)
     ├── Spawner & Grid/Collision Manager (Menjaga 5 huruf di map)
     ├── Entity: Kapibara (Posisi, sprite pixel procedural/SVG/Canvas, animasi jalan)
     ├── Input Handler (Keyboard arrow keys + Touch event listeners dengan preventDefault)
@@ -92,16 +104,17 @@ Instruksi ini disusun berurutan agar dapat diimplementasikan dan diuji langkah d
 - Konfigurasi viewport mobile (`user-scalable=no`, `viewport-fit=cover`).
 - Terapkan CSS reset dan aturan rendering pixel art (`image-rendering: pixelated`).
 - Siapkan layout 3 bagian:
-  1. Baris atas: Header info level dan kotak slot kata target.
+  1. Baris atas: Header info level ("Kata ke-1 dari 15") dan 4 kotak slot kata target.
   2. Area tengah: Canvas game 2D (rasio responsif yang pas di layar HP/tablet).
   3. Baris bawah: Kontrol sentuh D-Pad 4 arah berukuran besar (minimal tombol 64px–72px).
 
-### Tahap 2: Manajemen Data & Whitelist Validator
-- Definisikan array whitelist huruf: `['a', 'i', 'u', 'e', 'o', 'm', 's', 't', 'b', 'l', 'n', 'd', 'g', 'c', 'z']`.
-- Definisikan daftar kata target terurut (mulai dari 2 huruf, lalu 4 huruf).
+### Tahap 2: Manajemen Data & Bank Kata
+- Definisikan kumpulan alfabet A–Z: `['a', 'b', 'c', ..., 'z']`.
+- Definisikan bank kata berisi 15 kata benda 4 huruf yang telah ditentukan:
+  `['sapi', 'bola', 'mata', 'susu', 'kuda', 'buku', 'kaki', 'roti', 'topi', 'meja', 'baju', 'pita', 'gigi', 'tali', 'dadu']`.
 - Buat fungsi pembantu:
-  - Generator huruf pengecoh acak (hanya mengambil dari array whitelist selain huruf target saat ini).
-  - Validasi kata agar tidak ada kata yang lolos jika mengandung huruf non-whitelist.
+  - Generator huruf pengecoh acak (memilih acak dari alfabet A–Z selain huruf target saat ini).
+  - Validasi bahwa seluruh kata target memiliki panjang tepat 4 huruf.
 
 ### Tahap 3: Karakter Kapibara & Game Loop
 - Buat entitas Kapibara pada Canvas (bisa digambar menggunakan pixel drawing 2D canvas sederhana atau data matrix sprite retro).
@@ -125,8 +138,8 @@ Instruksi ini disusun berurutan agar dapat diimplementasikan dan diuji langkah d
 ### Tahap 6: Spawner Huruf & Mekanisme Pengambilan (Collision)
 - Tempatkan huruf-huruf pixel di canvas pada koordinat acak yang tidak bertabrakan dengan kapibara atau tepi layar.
 - Pastikan di map selalu ada tepat **5 huruf**:
-  - 1 huruf target yang dibutuhkan sesuai slot aktif kata.
-  - 4 huruf pengecoh dari whitelist.
+  - 1 huruf target yang dibutuhkan sesuai slot aktif kata (dari 4 slot).
+  - 4 huruf pengecoh acak dari alfabet A–Z.
 - Logika Tabrakan (Bounding Box / Radius check):
   - **Jika menyentuh huruf benar**:
     - Huruf terangkat masuk ke slot target di atas.
@@ -148,13 +161,13 @@ Instruksi ini disusun berurutan agar dapat diimplementasikan dan diuji langkah d
   3. Pastikan antrean audio tidak tumpang tindih (handle event `onend` atau antrean rapi).
 
 ### Tahap 8: Alur Selesai Kata, Perayaan & Transisi Level
-- Saat seluruh huruf dalam kata target berhasil dikumpulkan:
+- Saat ke-4 huruf dalam kata target berhasil dikumpulkan:
   - Mainkan suara pembacaan kata lengkap secara utuh (contoh: *"BOLA"*).
   - Tampilkan animasi perayaan singkat (efek pixel confetti berhamburan atau kapibara melompat gembira).
   - Mainkan jingle sukses pendek via Web Audio API.
   - Jeda 1.5 - 2 detik, lalu lanjut ke kata berikutnya secara otomatis.
-- Update tampilan progress di pojok layar: `"Kata ke-[Current] dari [Total]"`.
-- Jika seluruh kata dalam bank kata selesai, tampilkan layar kemenangan ceria ("Hebat, Naqiyya Pintar!") dengan tombol untuk mengulang dari awal.
+- Update tampilan progress di pojok layar: `"Kata ke-[Current] dari 15"`.
+- Jika seluruh 15 kata dalam bank kata selesai, tampilkan layar kemenangan ceria ("Hebat, Kamu Pintar!") dengan tombol untuk mengulang dari awal.
 
 ### Tahap 9: Elemen Rintangan Sederhana (Opsional/Pemanis)
 - Tambahkan 1-2 objek rintangan statis di arena (misal: batu pixel atau batang pohon).
@@ -165,16 +178,17 @@ Instruksi ini disusun berurutan agar dapat diimplementasikan dan diuji langkah d
 - Validasi fungsionalitas:
   - Kontrol sentuh responsif tanpa lag.
   - Audio Web Audio dan Speech Synthesis berjalan mulus di mobile.
-  - Tidak ada huruf di luar whitelist yang pernah muncul.
+  - Pool 5 huruf selalu terjaga konsisten sepanjang permainan.
 - Siapkan branch `main` pada git repository dan aktifkan GitHub Pages pada pengaturan repositori.
 
 ---
 
 ## ✅ Kriteria Keberhasilan (Acceptance Criteria)
 1. **Zero External Assets**: Game dapat dibuka offline langsung dari satu file `index.html` tanpa memerlukan internet untuk download gambar atau audio.
-2. **Kepatuhan Whitelist 100%**: Tidak ada huruf selain `a, i, u, e, o, m, s, t, b, l, n, d, g, c, z` yang pernah terlihat di layar.
-3. **UX Ramah Balita**: Tombol sentuh mudah ditekan anak kecil, tidak ada rasa frustrasi saat menabrak huruf salah.
-4. **Audio Lengkap**:
+2. **Bank Kata 4 Huruf Saja**: Semua target kata memiliki 4 slot huruf, dengan total 15 kata benda sehari-hari tanpa duplikasi.
+3. **Alfabet Penuh A-Z**: Huruf pengecoh dan huruf target bebas menggunakan alfabet A-Z.
+4. **UX Ramah Anak TK**: Tombol sentuh besar, tidak ada penalti/suara salah saat menabrak huruf yang tidak sesuai.
+5. **Audio Lengkap**:
    - Suara langkah kaki berbunyi saat jalan dan hening saat diam.
    - Suara pembacaan huruf dan ejaan jelas terdengar dalam bahasa Indonesia.
-5. **Responsif**: Tampilan rapi dan proporsional di layar HP, tablet, maupun layar laptop.
+6. **Responsif**: Tampilan rapi dan proporsional di layar HP, tablet, maupun layar laptop.
