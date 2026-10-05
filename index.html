@@ -15,7 +15,11 @@
         <span>🐾 KAPIBARA</span>
         <span id="level-indicator">Kata 1 dari 15</span>
       </div>
-      <div class="word-target-title">BENTUK KATA: <span id="current-target-name" style="color:#9e2a2b; font-weight:900;">...</span></div>
+      <div class="word-target-title">
+        BENTUK KATA: 
+        <span id="word-emoji" class="target-emoji">🐄</span> 
+        <span id="current-target-name" class="target-text">SAPI</span>
+      </div>
       <div class="slots-container" id="slots-container">
         <div class="letter-slot" id="slot-0"></div>
         <div class="letter-slot" id="slot-1"></div>
@@ -26,12 +30,15 @@
 
     <!-- GAME CANVAS -->
     <main id="canvas-wrapper">
-      <canvas id="gameCanvas" width="480" height="420"></canvas>
+      <canvas id="gameCanvas"></canvas>
     </main>
 
-    <!-- TOUCH CONTROLLER -->
+    <!-- TOUCH CONTROLLER & DESKTOP HINT -->
     <footer id="controls-bar">
-      <div class="dpad-container">
+      <div class="desktop-hint" id="desktop-hint">
+        🎮 Pakai tombol <b>Panah (Arrow Keys)</b> atau <b>WASD</b> di keyboard untuk berjalan
+      </div>
+      <div class="dpad-container" id="dpad-container">
         <button class="dpad-btn" id="btn-up" aria-label="Atas">▲</button>
         <button class="dpad-btn" id="btn-left" aria-label="Kiri">◀</button>
         <button class="dpad-btn" id="btn-down" aria-label="Bawah">▼</button>
@@ -41,7 +48,7 @@
 
     <!-- START SCREEN OVERLAY -->
     <div id="start-overlay" class="overlay-screen">
-      <div style="font-size: 56px; margin-bottom: 8px;">🐹🍊</div>
+      <div class="overlay-emoji">🐹🍊</div>
       <h1 class="overlay-title">KAPIBARA<br>CARI HURUF</h1>
       <p class="overlay-subtitle">Ayo bantu Kapibara mencari huruf-huruf untuk menyusun kata!</p>
       <button id="start-btn" class="big-action-btn">▶ MULAI</button>
@@ -49,7 +56,7 @@
 
     <!-- VICTORY SCREEN OVERLAY -->
     <div id="victory-overlay" class="overlay-screen hidden">
-      <div style="font-size: 60px; margin-bottom: 8px;">👑🎉</div>
+      <div class="overlay-emoji">👑🎉</div>
       <h2 class="overlay-title">HEBAT SEKALI!</h2>
       <p class="overlay-subtitle">Kamu berhasil membaca semua 15 kata dengan pintar!</p>
       <button id="restart-btn" class="big-action-btn">🔄 MAIN LAGI</button>

@@ -1,10 +1,22 @@
 /* ==========================================================================
-   1. DATA & CONSTANTS
+   1. DATA & CONSTANTS (15 KATA BENDA 4 HURUF DENGAN EMOJI JELAS)
    ========================================================================== */
 const WORD_BANK = [
-  'sapi', 'bola', 'mata', 'susu', 'kuda',
-  'buku', 'kaki', 'roti', 'topi', 'meja',
-  'baju', 'pita', 'gigi', 'tali', 'dadu'
+  { word: 'sapi', emoji: '🐄' },
+  { word: 'bola', emoji: '⚽' },
+  { word: 'mata', emoji: '👁️' },
+  { word: 'susu', emoji: '🥛' },
+  { word: 'kuda', emoji: '🐴' },
+  { word: 'buku', emoji: '📖' },
+  { word: 'kaki', emoji: '🦶' },
+  { word: 'roti', emoji: '🍞' },
+  { word: 'topi', emoji: '🧢' },
+  { word: 'baju', emoji: '👕' },
+  { word: 'pita', emoji: '🎀' },
+  { word: 'gigi', emoji: '🦷' },
+  { word: 'ikan', emoji: '🐟' },
+  { word: 'apel', emoji: '🍎' },
+  { word: 'dadu', emoji: '🎲' }
 ];
 
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyz'.split('');
@@ -14,8 +26,26 @@ let currentWordIndex = 0;
 let currentSlotIndex = 0;
 let isGameRunning = false;
 let isCelebrating = false;
-let mapLetters = []; // Always maintains exactly 5 items
-let celebrationParticles = [];
+let mapLetters = []; // Strictly maintains 5 letters on map with normalized (u, v) positions
+let celebrationParticles = []; // Confetti & hearts
+let pickupSparkles = [];       // Sparkles on pickup
+
+// Capybara Character (Stored with normalized position u, v: 0.0 - 1.0)
+const capybara = {
+  u: 0.5, // 0.0 - 1.0 (proportion of arena width)
+  v: 0.5, // 0.0 - 1.0 (proportion of arena height)
+  vx: 0,
+  vy: 0,
+  facing: 1, // 1 = right, -1 = left
+  isWalking: false,
+  walkTimer: 0,
+  walkFrame: 0,
+  hopY: 0,
+  hopTimer: 0,
+  // Idle blinking & breathing
+  blinkTimer: 0,
+  isBlinking: false
+};
 
 /* ==========================================================================
    2. AUDIO ENGINE (Web Audio API & Web Speech API)
@@ -23,7 +53,7 @@ let celebrationParticles = [];
 let audioCtx = null;
 let stepSoundTimer = null;
 let isStepPlaying = false;
-let speechActiveToken = 0; // Token to cancel pending chained speeches
+let speechActiveToken = 0; // Token to cancel pending chained speech
 
 function initAudio() {
   if (!audioCtx) {
@@ -35,7 +65,7 @@ function initAudio() {
   }
 }
 
-// Footstep Sound Generator (Procedural pop/thump)
+// Procedural Footstep Sound (Web Audio API soft thud)
 function playSingleStepSound() {
   if (!audioCtx) return;
   try {
@@ -45,9 +75,9 @@ function playSingleStepSound() {
     osc.type = 'triangle';
     const now = audioCtx.currentTime;
     osc.frequency.setValueAtTime(140, now);
-    osc.frequency.exponentialRampToValueAtTime(50, now + 0.06);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.06);
 
-    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.setValueAtTime(0.16, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
 
     osc.connect(gain);
@@ -78,6 +108,44 @@ function stopFootstepLoop() {
   }
 }
 
+// "CLINK" Sound Effect: 2 rapid rising bright bell/chime tones (~0.25s)
+function playClinkSound() {
+  if (!audioCtx) return;
+  try {
+    const now = audioCtx.currentTime;
+
+    // Tone 1: High crisp bell note (C6 ~ 1046 Hz)
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(1046.5, now);
+
+    gain1.gain.setValueAtTime(0.22, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.13);
+
+    // Tone 2: Rapid rising higher note (E6 ~ 1318.5 Hz / G6 ~ 1568 Hz)
+    const osc2 = audioCtx.createOscillator();
+    const gain2 = audioCtx.createGain();
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(1567.98, now + 0.07);
+
+    gain2.gain.setValueAtTime(0.24, now + 0.07);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+    osc2.connect(gain2);
+    gain2.connect(audioCtx.destination);
+    osc2.start(now + 0.07);
+    osc2.stop(now + 0.3);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 // Celebration Jingle (Web Audio arpeggio)
 function playSuccessJingle() {
   if (!audioCtx) return;
@@ -90,7 +158,7 @@ function playSuccessJingle() {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(freq, startTime);
 
-    gain.gain.setValueAtTime(0.2, startTime);
+    gain.gain.setValueAtTime(0.22, startTime);
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.28);
 
     osc.connect(gain);
@@ -144,10 +212,11 @@ function speakText(text, rate = 0.85, pitch = 1.1) {
 }
 
 /**
- * Sequence:
- * 1. Bunyi huruf yang dipungut dulu
- * 2. (Jika huruf terkumpul >= 2) Ejaan huruf-huruf terkumpul satu per satu
- * 3. Gabungan bunyinya
+ * Full Audio Sequence on Pickup:
+ * 1. Clink sound (Web Audio)
+ * 2. Bunyi huruf yang baru dipungut
+ * 3. (Jika huruf terkumpul >= 2) Ejaan huruf-huruf terkumpul satu per satu
+ * 4. Gabungan bunyinya
  */
 async function playProgressiveLetterSequence(pickedChar, collectedWordSoFar) {
   cancelAllSpeech();
@@ -155,11 +224,18 @@ async function playProgressiveLetterSequence(pickedChar, collectedWordSoFar) {
 
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
-  // 1. Bunyi huruf yang baru dipungut dulu
+  // 1. Bunyi clink dimainkan secara instan di Web Audio
+  playClinkSound();
+
+  // Tunggu sejenak agar efek clink terdengar jernih
+  await wait(240);
+  if (currentToken !== speechActiveToken) return;
+
+  // 2. Bunyi huruf itu dulu
   await speakText(pickedChar.toUpperCase(), 0.85, 1.15);
   if (currentToken !== speechActiveToken) return;
 
-  // 2. Jika huruf terkumpul >= 2, eja huruf lalu sebutkan bunyinya
+  // 3. Jika huruf terkumpul >= 2, eja huruf lalu sebutkan bunyinya
   if (collectedWordSoFar.length >= 2) {
     await wait(320);
     if (currentToken !== speechActiveToken) return;
@@ -180,139 +256,111 @@ async function playProgressiveLetterSequence(pickedChar, collectedWordSoFar) {
 }
 
 /* ==========================================================================
-   3. GAME ENTITIES & CANVAS
+   3. CANVAS, ARENA & PROPORTIONAL SIZING
    ========================================================================== */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const canvasWrapper = document.getElementById('canvas-wrapper');
 
-// Capybara Character
-const capybara = {
-  x: 240,
-  y: 210,
-  width: 44,
-  height: 34,
-  speed: 3.2,
-  vx: 0,
-  vy: 0,
-  facing: 1, // 1 = right, -1 = left
-  isWalking: false,
-  walkFrameTimer: 0,
-  walkFrame: 0,
-  bounceY: 0
-};
+let arenaWidth = 480;
+let arenaHeight = 420;
+let arenaShortest = 420;
 
-// Responsive Canvas Resize
-function resizeCanvas() {
-  const wrapper = document.getElementById('canvas-wrapper');
-  canvas.width = wrapper.clientWidth;
-  canvas.height = wrapper.clientHeight;
-  // Clamp capybara within canvas
-  capybara.x = Math.max(30, Math.min(canvas.width - 30, capybara.x));
-  capybara.y = Math.max(30, Math.min(canvas.height - 30, capybara.y));
+function resizeArena() {
+  const rect = canvasWrapper.getBoundingClientRect();
+  arenaWidth = Math.max(280, rect.width);
+  arenaHeight = Math.max(240, rect.height);
+  arenaShortest = Math.min(arenaWidth, arenaHeight);
+
+  // HiDPI / Retina Crisp Pixel Art
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(arenaWidth * dpr);
+  canvas.height = Math.round(arenaHeight * dpr);
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+  ctx.imageSmoothingEnabled = false;
 }
 
-window.addEventListener('resize', resizeCanvas);
+window.addEventListener('resize', resizeArena);
 
-// Letter Spawner (Maintains EXACTLY 5 letters on map)
+/* ==========================================================================
+   4. SPAWNER: RESET PENUH TIAP PUNGUT (5 HURUF DI MAP)
+   ========================================================================== */
 function getRandomDistractor(targetLetter, existingChars) {
   const candidates = ALPHABET.filter(c => c !== targetLetter && !existingChars.includes(c));
   return candidates[Math.floor(Math.random() * candidates.length)] || 'z';
 }
 
-function getSafeSpawnCoords() {
-  const padding = 42;
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const x = padding + Math.random() * (canvas.width - padding * 2);
-    const y = padding + Math.random() * (canvas.height - padding * 2);
-
-    // Don't spawn on top of capybara
-    const distToCapy = Math.hypot(x - capybara.x, y - capybara.y);
-    if (distToCapy < 65) continue;
-
-    // Don't spawn on top of existing letters
-    const tooClose = mapLetters.some(item => Math.hypot(item.x - x, item.y - y) < 48);
-    if (!tooClose) {
-      return { x, y };
-    }
-  }
-  return {
-    x: padding + Math.random() * (canvas.width - padding * 2),
-    y: padding + Math.random() * (canvas.height - padding * 2)
-  };
-}
-
-function initMapLettersForWord() {
+/**
+ * Reset penuh seluruh huruf di map setiap kali ada huruf yang dipungut
+ * Menghasilkan: 1 target berikutnya + 4 pengecoh acak (total tepat 5).
+ * Posisi disimpan sebagai proporsi u, v (0.0 s.d. 1.0)
+ */
+function resetAllMapLetters() {
   mapLetters = [];
-  const currentWord = WORD_BANK[currentWordIndex];
-  const targetChar = currentWord[currentSlotIndex];
+  const currentWordObj = WORD_BANK[currentWordIndex];
+  const targetChar = (currentSlotIndex < 4) ? currentWordObj.word[currentSlotIndex] : '';
 
-  // 1 target letter
-  const targetPos = getSafeSpawnCoords();
-  mapLetters.push({
-    char: targetChar,
-    isTarget: true,
-    x: targetPos.x,
-    y: targetPos.y,
-    bobOffset: Math.random() * Math.PI * 2
-  });
+  // Huruf yang akan di-spawn:
+  const lettersToSpawn = [];
+  if (targetChar) {
+    lettersToSpawn.push({ char: targetChar, isTarget: true });
+  }
 
-  // 4 distinct distractors (not equal to targetChar)
-  const usedChars = [targetChar];
-  for (let i = 0; i < 4; i++) {
+  // Lengkapi dengan pengecoh sampai tepat 5 huruf
+  const usedChars = targetChar ? [targetChar] : [];
+  while (lettersToSpawn.length < 5) {
     const distChar = getRandomDistractor(targetChar, usedChars);
     usedChars.push(distChar);
-    const pos = getSafeSpawnCoords();
-    mapLetters.push({
-      char: distChar,
-      isTarget: false,
-      x: pos.x,
-      y: pos.y,
-      bobOffset: Math.random() * Math.PI * 2
-    });
+    lettersToSpawn.push({ char: distChar, isTarget: false });
   }
-}
 
-function replenishLetterAfterPickup() {
-  const currentWord = WORD_BANK[currentWordIndex];
+  // Cari 5 posisi acak yang aman dan tidak bertumpuk
+  // Batas aman: u dalam [0.10, 0.90], v dalam [0.12, 0.88]
+  const minDistance = 0.16; // minimal 16% jarak antar huruf
+  const minCapyDistance = 0.20; // minimal 20% jarak dari kapibara
 
-  // If word not yet completed, next target letter must exist on map
-  if (currentSlotIndex < 4) {
-    const nextTargetChar = currentWord[currentSlotIndex];
+  lettersToSpawn.forEach(item => {
+    let bestU = 0.5;
+    let bestV = 0.5;
+    let found = false;
 
-    // Ensure no distractor on map currently matches the new target or duplicates
-    const usedChars = [nextTargetChar];
-    mapLetters.forEach(item => {
-      if (item.char === nextTargetChar || usedChars.includes(item.char)) {
-        item.char = getRandomDistractor(nextTargetChar, usedChars);
+    for (let attempt = 0; attempt < 120; attempt++) {
+      const u = 0.10 + Math.random() * 0.80;
+      const v = 0.12 + Math.random() * 0.76;
+
+      // Jarak ke kapibara
+      const distToCapy = Math.hypot(u - capybara.u, v - capybara.v);
+      if (distToCapy < minCapyDistance) continue;
+
+      // Jarak ke huruf lain
+      const tooCloseToOther = mapLetters.some(other => Math.hypot(u - other.u, v - other.v) < minDistance);
+      if (!tooCloseToOther) {
+        bestU = u;
+        bestV = v;
+        found = true;
+        break;
       }
-      usedChars.push(item.char);
-    });
+    }
 
-    // Spawn the new target letter
-    const pos = getSafeSpawnCoords();
+    if (!found) {
+      bestU = 0.10 + Math.random() * 0.80;
+      bestV = 0.12 + Math.random() * 0.76;
+    }
+
     mapLetters.push({
-      char: nextTargetChar,
-      isTarget: true,
-      x: pos.x,
-      y: pos.y,
+      char: item.char,
+      isTarget: item.isTarget,
+      u: bestU,
+      v: bestV,
       bobOffset: Math.random() * Math.PI * 2
     });
-  } else {
-    // Word is complete, spawn a temporary distractor so map strictly maintains 5 items
-    const pos = getSafeSpawnCoords();
-    const distChar = getRandomDistractor('', mapLetters.map(m => m.char));
-    mapLetters.push({
-      char: distChar,
-      isTarget: false,
-      x: pos.x,
-      y: pos.y,
-      bobOffset: Math.random() * Math.PI * 2
-    });
-  }
+  });
 }
 
 /* ==========================================================================
-   4. INPUT HANDLING (Keyboard & Touch D-Pad)
+   5. INPUT HANDLING (Keyboard & Touch D-Pad)
    ========================================================================== */
 const keysPressed = {
   up: false,
@@ -338,6 +386,7 @@ window.addEventListener('keyup', (e) => {
 
 function setupDpadButton(btnId, directionKey) {
   const btn = document.getElementById(btnId);
+  if (!btn) return;
 
   const startPress = (e) => {
     e.preventDefault();
@@ -366,12 +415,12 @@ setupDpadButton('btn-left', 'left');
 setupDpadButton('btn-right', 'right');
 
 /* ==========================================================================
-   5. GAME LOGIC & COLLISION
+   6. GAME LOGIC & COLLISION
    ========================================================================== */
 function updateGame(deltaTime) {
   if (!isGameRunning) return;
 
-  // Handle Capybara Movement
+  // Gerakan Kapibara Proporsional
   let dx = 0;
   let dy = 0;
   if (keysPressed.up) dy -= 1;
@@ -379,108 +428,152 @@ function updateGame(deltaTime) {
   if (keysPressed.left) dx -= 1;
   if (keysPressed.right) dx += 1;
 
-  // Normalize diagonal speed
   if (dx !== 0 && dy !== 0) {
     dx *= 0.7071;
     dy *= 0.7071;
   }
 
-  capybara.vx = dx * capybara.speed;
-  capybara.vy = dy * capybara.speed;
+  // Kecepatan dihitung proporsional terhadap ukuran arena (~44% shortest side per detik)
+  const speedInPixels = arenaShortest * 0.44;
+  const moveX = dx * speedInPixels * deltaTime;
+  const moveY = dy * speedInPixels * deltaTime;
 
-  capybara.x += capybara.vx;
-  capybara.y += capybara.vy;
+  capybara.u += moveX / arenaWidth;
+  capybara.v += moveY / arenaHeight;
 
   if (dx < 0) capybara.facing = -1;
   if (dx > 0) capybara.facing = 1;
 
-  // Screen boundary clamping
-  const margin = 24;
-  capybara.x = Math.max(margin, Math.min(canvas.width - margin, capybara.x));
-  capybara.y = Math.max(margin, Math.min(canvas.height - margin, capybara.y));
+  // Batas arena aman
+  capybara.u = Math.max(0.06, Math.min(0.94, capybara.u));
+  capybara.v = Math.max(0.08, Math.min(0.92, capybara.v));
 
-  // Walking state & Footstep sound trigger
+  // Animasi Jalan & Suara Langkah
   const moving = (dx !== 0 || dy !== 0);
   capybara.isWalking = moving;
 
   if (moving) {
     startFootstepLoop();
-    capybara.walkFrameTimer += deltaTime;
-    if (capybara.walkFrameTimer > 0.14) {
-      capybara.walkFrame = (capybara.walkFrame + 1) % 2;
-      capybara.walkFrameTimer = 0;
-    }
+    capybara.walkTimer += deltaTime * 8;
   } else {
     stopFootstepLoop();
-    capybara.walkFrame = 0;
+    capybara.walkTimer = 0;
   }
 
-  // Check Collision with letters on map
-  if (!isCelebrating && currentSlotIndex < 4) {
-    const currentWord = WORD_BANK[currentWordIndex];
-    const neededChar = currentWord[currentSlotIndex];
-
-    for (let i = 0; i < mapLetters.length; i++) {
-      const item = mapLetters[i];
-      const dist = Math.hypot(capybara.x - item.x, capybara.y - item.y);
-
-      // Touch radius check
-      if (dist < 32) {
-        if (item.char === neededChar) {
-          // CORRECT LETTER COLLECTED!
-          onCorrectLetterCollected(item, i);
-          break;
-        }
-        // WRONG LETTER: Do nothing (gentle learning, no penalty)
-      }
+  // Idle Blinking (berkedip tiap 3.5 - 5 detik)
+  capybara.blinkTimer += deltaTime;
+  if (capybara.blinkTimer > 3.8) {
+    capybara.isBlinking = true;
+    if (capybara.blinkTimer > 4.0) {
+      capybara.isBlinking = false;
+      capybara.blinkTimer = Math.random() * 0.5;
     }
   }
 
-  // Update Celebration Particles
+  // Hop Animasi Saat Pungut
+  if (capybara.hopTimer > 0) {
+    capybara.hopTimer -= deltaTime;
+    capybara.hopY = Math.sin((1 - capybara.hopTimer / 0.35) * Math.PI) * -16;
+  } else {
+    capybara.hopY = 0;
+  }
+
+  // Update Sparkles Pungut Huruf
+  pickupSparkles.forEach(s => {
+    s.x += s.vx;
+    s.y += s.vy;
+    s.alpha -= deltaTime * 2.2;
+    s.size *= 0.96;
+  });
+  pickupSparkles = pickupSparkles.filter(s => s.alpha > 0.05);
+
+  // Update Confetti & Hearts Selesai Kata
   if (isCelebrating) {
     celebrationParticles.forEach(p => {
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.12; // gravity
+      p.vy += 0.12;
       p.rotation += p.vRot;
     });
-    celebrationParticles = celebrationParticles.filter(p => p.y < canvas.height + 20);
+    celebrationParticles = celebrationParticles.filter(p => p.y < arenaHeight + 30);
+    // Lompat tinggi saat perayaan kata
+    capybara.hopY = Math.abs(Math.sin(Date.now() * 0.012)) * -24;
+  }
 
-    // Happy bouncing capybara
-    capybara.bounceY = Math.abs(Math.sin(Date.now() * 0.01)) * -14;
-  } else {
-    capybara.bounceY = 0;
+  // Deteksi Tabrakan dengan Huruf
+  if (!isCelebrating && currentSlotIndex < 4) {
+    const currentWordObj = WORD_BANK[currentWordIndex];
+    const neededChar = currentWordObj.word[currentSlotIndex];
+
+    const capyPixelX = capybara.u * arenaWidth;
+    const capyPixelY = capybara.v * arenaHeight;
+    const letterRadius = arenaShortest * 0.072; // 14.4% diameter
+    const hitDistance = letterRadius * 1.55;
+
+    for (let i = 0; i < mapLetters.length; i++) {
+      const item = mapLetters[i];
+      const itemPixelX = item.u * arenaWidth;
+      const itemPixelY = item.v * arenaHeight;
+
+      const dist = Math.hypot(capyPixelX - itemPixelX, capyPixelY - itemPixelY);
+
+      if (dist < hitDistance) {
+        if (item.char === neededChar) {
+          // HURUF BENAR DIPUNGUT!
+          onCorrectLetterCollected(item.char);
+          break;
+        }
+        // HURUF PENGECOH: Diam, tanpa suara apa pun (gentle learning)
+      }
+    }
   }
 }
 
-function onCorrectLetterCollected(letterItem, letterIndex) {
-  const currentWord = WORD_BANK[currentWordIndex];
-  const collectedChar = letterItem.char;
+function onCorrectLetterCollected(collectedChar) {
+  const currentWordObj = WORD_BANK[currentWordIndex];
 
-  // Fill slot UI
+  // Efek lompat kecil & sparkle
+  capybara.hopTimer = 0.35;
+  spawnPickupSparkles(capybara.u * arenaWidth, capybara.v * arenaHeight);
+
+  // Isi Slot UI
   const slotEl = document.getElementById(`slot-${currentSlotIndex}`);
   slotEl.textContent = collectedChar.toUpperCase();
   slotEl.classList.remove('active-target');
   slotEl.classList.add('filled');
 
-  // Remove letter from map
-  mapLetters.splice(letterIndex, 1);
   currentSlotIndex++;
 
-  // Word collected so far
-  const collectedSoFar = currentWord.substring(0, currentSlotIndex);
+  // Kata yang terkumpul sejauh ini
+  const collectedSoFar = currentWordObj.word.substring(0, currentSlotIndex);
 
-  // Trigger Web Speech API progressive spelling sequence
+  // Mainkan urutan suara: Clink -> Huruf -> Ejaan -> Gabungan
   playProgressiveLetterSequence(collectedChar, collectedSoFar);
 
-  // Check if word complete
+  // ATURAN 1: RESET PENUH SELURUH HURUF DI MAP
+  resetAllMapLetters();
+
+  // Cek apakah kata sudah selesai (4 huruf)
   if (currentSlotIndex >= 4) {
-    replenishLetterAfterPickup();
     triggerWordCelebration();
   } else {
-    // Replenish 1 letter to keep map strictly 5 letters
-    replenishLetterAfterPickup();
     updateActiveSlotHighlight();
+  }
+}
+
+function spawnPickupSparkles(x, y) {
+  for (let i = 0; i < 7; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = 2 + Math.random() * 4;
+    pickupSparkles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd - 1,
+      size: 5 + Math.random() * 5,
+      alpha: 1.0,
+      color: Math.random() > 0.4 ? '#ffea00' : '#ffffff'
+    });
   }
 }
 
@@ -500,23 +593,24 @@ function triggerWordCelebration() {
   playSuccessJingle();
   updateActiveSlotHighlight();
 
-  // Spawn confetti particles
+  // Confetti dan hati beterbangan
   celebrationParticles = [];
-  const colors = ['#ff595e', '#ffca3a', '#8ac926', '#1982c4', '#6a4c93', '#ffffff'];
-  for (let i = 0; i < 50; i++) {
+  const colors = ['#ff595e', '#ffca3a', '#8ac926', '#1982c4', '#ff70a6', '#ffffff'];
+  for (let i = 0; i < 48; i++) {
     celebrationParticles.push({
-      x: canvas.width / 2 + (Math.random() - 0.5) * 160,
-      y: canvas.height / 2 - 40,
+      x: arenaWidth / 2 + (Math.random() - 0.5) * arenaWidth * 0.4,
+      y: arenaHeight / 2 - 20,
       vx: (Math.random() - 0.5) * 8,
-      vy: -4 - Math.random() * 6,
+      vy: -5 - Math.random() * 6,
       color: colors[Math.floor(Math.random() * colors.length)],
-      size: 6 + Math.random() * 6,
+      size: 7 + Math.random() * 7,
       rotation: Math.random() * Math.PI,
-      vRot: (Math.random() - 0.5) * 0.2
+      vRot: (Math.random() - 0.5) * 0.25,
+      isHeart: i % 4 === 0
     });
   }
 
-  // After 3.5s transition to next word (gives enough time for full speech sequence)
+  // Transisi ke kata berikutnya setelah 3.5 detik (memberi waktu bagi ejaan selesai diucapkan)
   setTimeout(() => {
     advanceToNextWord();
   }, 3500);
@@ -539,9 +633,11 @@ function loadWord(index) {
   currentSlotIndex = 0;
   isCelebrating = false;
 
-  // Update UI Header
-  const targetWord = WORD_BANK[currentWordIndex];
-  document.getElementById('current-target-name').textContent = targetWord.toUpperCase();
+  const currentObj = WORD_BANK[currentWordIndex];
+
+  // Update UI Header dengan Emoji
+  document.getElementById('word-emoji').textContent = currentObj.emoji;
+  document.getElementById('current-target-name').textContent = currentObj.word.toUpperCase();
   document.getElementById('level-indicator').textContent = `Kata ${currentWordIndex + 1} dari ${WORD_BANK.length}`;
 
   // Reset Slots
@@ -552,8 +648,8 @@ function loadWord(index) {
   }
   updateActiveSlotHighlight();
 
-  // Reset Map Letters (Always 5: 1 target + 4 distractors)
-  initMapLettersForWord();
+  // Reset Map Letters (5 huruf baru di posisi acak)
+  resetAllMapLetters();
 }
 
 function showVictoryScreen() {
@@ -564,139 +660,259 @@ function showVictoryScreen() {
 }
 
 /* ==========================================================================
-   6. RENDERING ENGINE (Pixel Art Aesthetic)
+   7. CHIBI GEMOY CAPYBARA PIXEL ART RENDERING
    ========================================================================== */
-function drawPixelArtCapybara(ctx, x, y, facing, isWalking, walkFrame, bounceY) {
+function drawChibiCapybara(ctx, x, y, size, facing, isWalking, walkTimer, hopY, isBlinking) {
   ctx.save();
-  ctx.translate(x, y + bounceY);
+  ctx.translate(x, y + hopY);
   ctx.scale(facing, 1);
 
-  // Shadow
-  ctx.fillStyle = 'rgba(25, 45, 15, 0.3)';
+  // Skala dasar berdasarkan proporsi arena
+  const scale = size / 54;
+  ctx.scale(scale, scale);
+
+  // Waddle & Squash-and-stretch
+  let squashX = 1;
+  let squashY = 1;
+  let waddleAngle = 0;
+
+  if (isWalking) {
+    const bounce = Math.sin(walkTimer);
+    squashX = 1 + bounce * 0.06;
+    squashY = 1 - bounce * 0.06;
+    waddleAngle = Math.sin(walkTimer * 0.5) * 0.08;
+  } else {
+    // Breathing idle pelan
+    const breath = Math.sin(Date.now() * 0.003) * 0.03;
+    squashY = 1 + breath;
+  }
+
+  ctx.rotate(waddleAngle);
+  ctx.scale(squashX, squashY);
+
+  // 1. Bayangan Lembut di Bawah
+  ctx.fillStyle = 'rgba(20, 35, 10, 0.28)';
   ctx.beginPath();
-  ctx.ellipse(0, 16, 20, 7, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 22, 24 * squashX, 8, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Capybara Body (Chunky retro pixel shapes)
-  // Feet
-  ctx.fillStyle = '#4a2e12';
-  const legOffset = (isWalking && walkFrame === 1) ? 3 : 0;
-  ctx.fillRect(-14 + legOffset, 10, 6, 8); // Back left leg
-  ctx.fillRect(-6 - legOffset, 10, 6, 8);  // Back right leg
-  ctx.fillRect(4 + legOffset, 10, 6, 8);   // Front left leg
-  ctx.fillRect(12 - legOffset, 10, 6, 8);  // Front right leg
+  // 2. Kaki Mungil Gemuk
+  ctx.fillStyle = '#5c3818';
+  const legSwing = isWalking ? Math.sin(walkTimer) * 5 : 0;
+  // Kaki belakang kiri & kanan
+  ctx.fillRect(-16 + legSwing, 14, 8, 9);
+  ctx.fillRect(-6 - legSwing, 14, 8, 9);
+  // Kaki depan kiri & kanan
+  ctx.fillRect(8 + legSwing, 14, 8, 9);
+  ctx.fillRect(18 - legSwing, 14, 8, 9);
 
-  // Main Torso
-  ctx.fillStyle = '#8b5a2b';
-  ctx.fillRect(-18, -4, 34, 18);
-  // Highlights/belly
-  ctx.fillStyle = '#a26b34';
-  ctx.fillRect(-16, -2, 30, 14);
+  // 3. Badan Gemuk Pendek Bulat (Torso)
+  ctx.fillStyle = '#9b6332';
+  ctx.beginPath();
+  ctx.ellipse(-2, 4, 25, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Head
-  ctx.fillStyle = '#8b5a2b';
-  ctx.fillRect(4, -18, 18, 18);
-  // Snout
-  ctx.fillStyle = '#5c3a1b';
-  ctx.fillRect(14, -12, 10, 12);
-  // Nostril
-  ctx.fillStyle = '#2d1b0c';
-  ctx.fillRect(21, -8, 2, 3);
+  // Perut lembut / highlight hangat
+  ctx.fillStyle = '#b3783e';
+  ctx.beginPath();
+  ctx.ellipse(-2, 6, 21, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Ear
-  ctx.fillStyle = '#5c3a1b';
-  ctx.fillRect(6, -21, 5, 5);
+  // 4. Kepala Bulat Besar Menggemaskan
+  ctx.fillStyle = '#9b6332';
+  ctx.beginPath();
+  ctx.ellipse(14, -8, 19, 17, 0, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Eye (Relaxed/Cute Kawaii eye)
-  ctx.fillStyle = '#1a1007';
-  ctx.fillRect(11, -13, 3, 3);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(12, -13, 1, 1);
+  // Moncong / Pipi chubby
+  ctx.fillStyle = '#855125';
+  ctx.beginPath();
+  ctx.ellipse(22, -4, 12, 11, 0, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Iconic Pixel Orange on Head 🍊
+  // 5. Telinga Bulat Kecil
+  ctx.fillStyle = '#6e3e15';
+  ctx.beginPath();
+  ctx.ellipse(8, -23, 5, 6, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ff9999';
+  ctx.beginPath();
+  ctx.ellipse(8, -23, 2.5, 3.5, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 6. Mata Besar Hitam dengan Pantulan Binar Putih (Kawaii Chibi Eye)
+  if (!isBlinking) {
+    ctx.fillStyle = '#140c06';
+    ctx.beginPath();
+    ctx.arc(17, -10, 4.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pantulan binar putih besar & kecil
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(18.2, -11.2, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Mata berkedip: garis lengkung senang ^_^
+    ctx.strokeStyle = '#140c06';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(17, -8, 4, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.stroke();
+  }
+
+  // 7. Pipi Pink Merona (Blush)
+  ctx.fillStyle = 'rgba(255, 120, 150, 0.65)';
+  ctx.beginPath();
+  ctx.ellipse(14, -2, 4.5, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 8. Hidung & Senyum Kecil Imut
+  ctx.fillStyle = '#3a200a';
+  ctx.fillRect(30, -6, 3, 3);
+
+  ctx.strokeStyle = '#3a200a';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(28, -2, 2.8, 0, Math.PI * 0.85);
+  ctx.stroke();
+
+  // 9. Jeruk Yuzu Mini di Kepala 🍊
   ctx.fillStyle = '#ff7b00';
-  ctx.fillRect(8, -26, 7, 6);
-  ctx.fillStyle = '#ffa726';
-  ctx.fillRect(9, -25, 5, 4);
-  // Leaf
-  ctx.fillStyle = '#4caf50';
-  ctx.fillRect(11, -28, 3, 2);
+  ctx.beginPath();
+  ctx.arc(14, -26, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffb300';
+  ctx.beginPath();
+  ctx.arc(12.5, -27.5, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  // Daun jeruk
+  ctx.fillStyle = '#43a047';
+  ctx.beginPath();
+  ctx.ellipse(17, -31, 3.5, 1.8, 0.4, 0, Math.PI * 2);
+  ctx.fill();
 
   ctx.restore();
 }
 
+/* ==========================================================================
+   8. RENDERING ENGINE
+   ========================================================================== */
 function renderGame() {
-  // Clear Background
+  // Clear Background Padang Rumput
   ctx.fillStyle = '#5bb344';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, arenaWidth, arenaHeight);
 
-  // Grass tufts / decorative pixel flowers
+  // Ornamen Rumput Pixel
   ctx.fillStyle = '#4fa338';
-  for (let i = 20; i < canvas.width; i += 70) {
-    for (let j = 25; j < canvas.height; j += 75) {
-      ctx.fillRect(i, j, 4, 3);
-      ctx.fillRect(i + 2, j - 2, 3, 3);
+  const gridStep = Math.max(40, arenaShortest * 0.14);
+  for (let x = 20; x < arenaWidth; x += gridStep) {
+    for (let y = 20; y < arenaHeight; y += gridStep) {
+      ctx.fillRect(x, y, 4, 3);
+      ctx.fillRect(x + 2, y - 2, 3, 3);
     }
   }
 
-  // Draw Letters on Map (Exactly 5)
-  const now = Date.now() * 0.004;
+  // 1. Gambar 5 Huruf Koin di Map (Diameter 13% - 15% dari S)
+  const letterRadius = arenaShortest * 0.072;
+  const now = Date.now() * 0.0035;
+
   mapLetters.forEach(item => {
-    const floatY = item.y + Math.sin(now + item.bobOffset) * 3;
+    const px = item.u * arenaWidth;
+    const py = item.v * arenaHeight;
+    const floatY = py + Math.sin(now + item.bobOffset) * 4;
 
-    // Tile shadow
-    ctx.fillStyle = 'rgba(20, 40, 10, 0.25)';
+    // Bayangan Koin
+    ctx.fillStyle = 'rgba(20, 40, 10, 0.28)';
     ctx.beginPath();
-    ctx.ellipse(item.x, item.y + 14, 15, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(px, py + letterRadius * 0.9, letterRadius * 0.95, letterRadius * 0.4, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Tile background (Golden wooden token)
-    ctx.fillStyle = '#3a2410';
+    // Lingkaran Luar Koin (Golden Retro Coin)
+    ctx.fillStyle = '#4a2f14';
     ctx.beginPath();
-    ctx.arc(item.x, floatY, 17, 0, Math.PI * 2);
+    ctx.arc(px, floatY, letterRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#ffeaa7';
+    ctx.fillStyle = '#ffcf33';
     ctx.beginPath();
-    ctx.arc(item.x, floatY - 2, 15, 0, Math.PI * 2);
+    ctx.arc(px, floatY - 2, letterRadius * 0.92, 0, Math.PI * 2);
     ctx.fill();
 
-    // Letter text
-    ctx.fillStyle = '#3a2410';
-    ctx.font = 'bold 20px "Courier New", Courier, monospace';
+    ctx.fillStyle = '#fff4cc';
+    ctx.beginPath();
+    ctx.arc(px, floatY - 3, letterRadius * 0.78, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Huruf Tebal & Jelas
+    ctx.fillStyle = '#3a200a';
+    ctx.font = `900 ${Math.round(letterRadius * 1.15)}px 'Courier New', monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(item.char.toUpperCase(), item.x, floatY - 2);
+    ctx.fillText(item.char.toUpperCase(), px, floatY - 2);
   });
 
-  // Draw Capybara
-  drawPixelArtCapybara(
+  // 2. Gambar Karakter Kapibara Chibi (Ukuran 16% - 18% dari S)
+  const capyPixelX = capybara.u * arenaWidth;
+  const capyPixelY = capybara.v * arenaHeight;
+  const capySize = arenaShortest * 0.17;
+
+  drawChibiCapybara(
     ctx,
-    capybara.x,
-    capybara.y,
+    capyPixelX,
+    capyPixelY,
+    capySize,
     capybara.facing,
     capybara.isWalking,
-    capybara.walkFrame,
-    capybara.bounceY
+    capybara.walkTimer,
+    capybara.hopY,
+    capybara.isBlinking
   );
 
-  // Draw Confetti
+  // 3. Gambar Sparkle Pungut Huruf
+  pickupSparkles.forEach(s => {
+    ctx.save();
+    ctx.globalAlpha = s.alpha;
+    ctx.fillStyle = s.color;
+    // Bintang 4 titik
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y - s.size);
+    ctx.lineTo(s.x + s.size * 0.35, s.y);
+    ctx.lineTo(s.x, s.y + s.size);
+    ctx.lineTo(s.x - s.size * 0.35, s.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // 4. Gambar Confetti & Hati Perayaan Kata
   celebrationParticles.forEach(p => {
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.rotation);
-    ctx.fillStyle = p.color;
-    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+
+    if (p.isHeart) {
+      // Gambar Hati Kecil Merah Muda
+      ctx.fillStyle = '#ff4d6d';
+      ctx.font = `${Math.round(p.size * 1.4)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('❤️', 0, 0);
+    } else {
+      // Confetti Kotak Pixel Art
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+    }
     ctx.restore();
   });
 }
 
 /* ==========================================================================
-   7. MAIN GAME LOOP
+   9. MAIN GAME LOOP
    ========================================================================== */
 let lastTime = performance.now();
 function gameLoop(time) {
-  const deltaTime = (time - lastTime) / 1000;
+  const deltaTime = Math.min((time - lastTime) / 1000, 0.1);
   lastTime = time;
 
   updateGame(deltaTime);
@@ -706,17 +922,17 @@ function gameLoop(time) {
 }
 
 /* ==========================================================================
-   8. INITIALIZATION & BUTTONS
+   10. INITIALIZATION & BUTTONS
    ========================================================================== */
 document.getElementById('start-btn').addEventListener('click', () => {
   initAudio();
   cancelAllSpeech();
   document.getElementById('start-overlay').classList.add('hidden');
-  resizeCanvas();
+  resizeArena();
   loadWord(0);
   isGameRunning = true;
-  // Friendly voice intro
-  speakText('Ayo cari kata: ' + WORD_BANK[0], 0.9, 1.1);
+  // Suara panduan awal
+  speakText('Ayo cari kata ' + WORD_BANK[0].word, 0.9, 1.1);
 });
 
 document.getElementById('restart-btn').addEventListener('click', () => {
@@ -725,6 +941,6 @@ document.getElementById('restart-btn').addEventListener('click', () => {
   isGameRunning = true;
 });
 
-// Start render loop immediately (shows background while in start overlay)
-resizeCanvas();
+// Jalankan penyesuaian ukuran awal dan game loop
+resizeArena();
 requestAnimationFrame(gameLoop);
