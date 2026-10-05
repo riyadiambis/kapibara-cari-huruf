@@ -28,24 +28,13 @@ Dapat langsung dibuka di browser tanpa framework eksternal, tanpa dependensi bui
 1. **Cakupan Huruf Lengkap (A sampai Z)**:
    - Huruf yang boleh muncul di arena (huruf target maupun pengecoh) mencakup seluruh alfabet A sampai Z (`a` s.d. `z`).
 
-2. **Bank Kata Terkurasi (15 Kata Benda 4 Huruf Ber-Emoji)**:
-   - Terdiri dari 15 kata benda konkret sehari-hari yang akrab bagi anak TK dan memiliki padanan emoji yang jelas:
-     1. `sapi` (🐄)
-     2. `bola` (⚽)
-     3. `mata` (👁️)
-     4. `susu` (🥛)
-     5. `kuda` (🐴)
-     6. `buku` (📖)
-     7. `kaki` (🦶)
-     8. `roti` (🍞)
-     9. `topi` (🧢)
-     10. `baju` (👕)
-     11. `pita` (🎀)
-     12. `gigi` (🦷)
-     13. `ikan` (🐟)
-     14. `apel` (🍎)
-     15. `dadu` (🎲)
-   - Emoji ditampilkan mendampingi teks "BENTUK KATA" agar anak mengenali objek yang sedang dibaca.
+2. **Bank Kata & Pengacakan Target (Randomized Without Duplicates)**:
+   - Terdiri dari 15 kata benda konkret 4 huruf yang akrab bagi anak TK dengan padanan emoji jelas:
+     `sapi` (🐄), `bola` (⚽), `mata` (👁️), `susu` (🥛), `kuda` (🐴), `buku` (📖), `kaki` (🦶), `roti` (🍞), `topi` (🧢), `baju` (👕), `pita` (🎀), `gigi` (🦷), `ikan` (🐟), `apel` (🍎), `dadu` (🎲).
+   - **Urutan Kata Acak**: Seluruh 15 kata dikocok (Fisher-Yates) di awal permainan sehingga urutan kemunculan tidak pernah monoton (kata pertama juga acak).
+   - Tidak ada kata yang muncul dua kali dalam satu putaran 15 kata.
+   - **Saat MAIN LAGI**: Bank kata dikocok ulang dengan jaminan kata pertama di putaran baru tidak sama dengan kata terakhir putaran sebelumnya.
+   - Emoji pendamping selalu tampil mendampingi tulisan "BENTUK KATA" agar anak mengenali artinya.
 
 3. **Reset Huruf Penuh Tiap Pungut (Strict 5 Letters on Map)**:
    - Jumlah huruf di map **selalu persis 5 huruf**:
@@ -70,8 +59,22 @@ Dapat langsung dibuka di browser tanpa framework eksternal, tanpa dependensi bui
      3. Jika huruf terkumpul $\ge 2$: eja satu per satu huruf yang telah terkumpul (misal: *"S... A... P"*).
      4. Bunyi kata/suku kata gabungannya (misal: *"SAP"*).
 
-5. **Karakter Kapibara Chibi Gemoy**:
-   - Kepala bulat besar, badan gemuk pendek, kaki mungil, pipi merah muda (*blush*), mata besar berkilau, telinga bulat, serta jeruk yuzu mini di atas kepala.
+5. **Popup Lanjut Pasca Kata Selesai (Pemberhentian Total Game)**:
+   - Setelah 4 huruf terkumpul, animasi perayaan selesai, dan pembacaan kata selesai, tampil popup modal di tengah layar.
+   - Konten popup:
+     - Emoji kata berukuran besar.
+     - Nama kata lengkap dalam huruf besar tebal.
+     - Tombol **"🔊 DENGAR LAGI"** (memutar ulang bunyi kata).
+     - Tombol **"LANJUT ▶"** (beralih ke kata berikutnya) atau **"MAIN LAGI ▶"** pada kata terakhir ke-15.
+   - **Aturan Ketat Popup**:
+     - Game **BERHENTI TOTAL**: kapibara diam tidak bisa digerakkan, huruf di map tidak bisa dipungut, suara langkah kaki mati, dan **tidak ada auto-pindah kata**.
+     - Popup **TIDAK BISA** ditutup dengan menyentuh backdrop luar.
+     - Tombol berukuran besar (tinggi minimal 64px) yang ramah sentuhan jari anak TK serta dapat ditekan lewat tombol `Enter` atau `Spasi` keyboard.
+     - Status tombol arah yang sedang ditekan di-reset saat popup muncul, mencegah kapibara jalan sendiri setelah popup ditutup.
+     - Setelah tombol "LANJUT ▶" ditekan, popup tertutup, kata baru muncul, 5 huruf baru di-spawn, dan kapibara kembali ke posisi tengah arena.
+
+6. **Karakter Kapibara Chibi Gemoy**:
+   - Kepala bulat besar, badan gemuk pendek, kaki mungil, pipi merah muda (*blush*), mata besar berkilau, telinga bulat, serta jeruk yuzu mini di atas kepala 🍊.
    - Animasi dinamis:
      - *Jalan*: Bergoyang lucu (*waddle*) dengan efek lentur (*squash and stretch*) dan bayangan dinamis.
      - *Diam (Idle)*: Bernapas halus dan berkedip berkala.
@@ -79,7 +82,7 @@ Dapat langsung dibuka di browser tanpa framework eksternal, tanpa dependensi bui
      - *Selesai Kata*: Melompat tinggi gembira diiringi hujan hati (*hearts*) dan confetti.
      - *Hadap*: Berbalik arah kiri dan kanan mengikuti tombol arah.
 
-6. **Desain Responsif Fleksibel (HP, Tablet, Laptop)**:
+7. **Desain Responsif Fleksibel (HP, Tablet, Laptop)**:
    - Tidak ada scrollbar di semua perangkat (`100dvh`).
    - Di HP tampil portrait kompak; di tablet dan laptop arena membesar mengisi layar (tidak berupa kolom sempit).
    - Seluruh elemen berukuran proporsional terhadap sisi terpendek arena:
@@ -95,9 +98,9 @@ Dapat langsung dibuka di browser tanpa framework eksternal, tanpa dependensi bui
 
 ```text
 /
-├── index.html   # Struktur halaman, header status, canvas arena, dan D-Pad/hint
-├── style.css    # Desain pixel art, tema cerah, layout 100dvh, responsive media queries
-├── script.js    # Logika game, Web Audio, Web Speech, spawner reset 5 huruf, rendering chibi
+├── index.html   # Struktur halaman, header status, canvas arena, popup lanjut, dan D-Pad/hint
+├── style.css    # Desain pixel art, tema cerah, layout 100dvh, styling popup, responsive media queries
+├── script.js    # Logika game, Web Audio, Web Speech, pengacakan kata, popup modal, rendering chibi
 └── ISSUE.md     # Dokumentasi spesifikasi dan perencanaan proyek
 ```
 
@@ -105,6 +108,7 @@ Dapat langsung dibuka di browser tanpa framework eksternal, tanpa dependensi bui
 
 ## 📋 Checklist Fungsionalitas
 - [x] Layar awal dengan tombol besar "▶ MULAI" untuk otorisasi audio.
+- [x] Urutan kata target diacak tanpa pengulangan (kata pertama acak).
 - [x] Reset penuh 5 huruf tiap kali huruf benar dipungut.
 - [x] Pengecoh tidak sama dengan huruf target dan tidak duplikat.
 - [x] Efek suara clink lonceng ceria sebelum fonik huruf.
@@ -112,5 +116,8 @@ Dapat langsung dibuka di browser tanpa framework eksternal, tanpa dependensi bui
 - [x] Suara langkah kaki mati saat kapibara berhenti.
 - [x] Kapibara chibi gemoy dengan animasi waddle, kedip, hop, sparkle, dan hati.
 - [x] Tampilan 15 emoji pendamping kata target.
+- [x] Popup modal pasca kata selesai dengan tombol "🔊 DENGAR LAGI" dan "LANJUT ▶" (min 64px).
+- [x] Game berhenti total selama popup tampil (tidak ada auto-pindah).
+- [x] Pada kata ke-15, tombol popup berganti "MAIN LAGI ▶" dengan kocokan baru.
 - [x] Layout responsif 100dvh (D-Pad sentuh vs panduan keyboard laptop).
 - [x] Huruf target tidak dibedakan warnanya di arena (anak mencari sendiri).
